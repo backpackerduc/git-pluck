@@ -1,0 +1,22 @@
+[package]
+name = "git-pluck"
+version = "0.1.0"
+edition = "2024"
+description = "Create a separate Git branch containing a mapped subset of a repository's files with full commit history preserved"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+git2 = { version = "0.20", default-features = false }
+regex = "1"
+anyhow = "1"
+chrono = "0.4"
+gix-config = "0.56"
+gix-hash = { version = "0.25", default-features = false, features = ["sha1"] }
+bstr = "1"
+
+[dev-dependencies]
+test_utils = { path = "tests/utils" }
+
+[profile.release]
+lto = true
+strip = true
