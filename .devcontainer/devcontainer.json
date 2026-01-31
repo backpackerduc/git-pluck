@@ -1,0 +1,42 @@
+{
+  "name": "git-pluck-dev",
+  // Use Dockerfile for standalone and devcontainer builds
+  "dockerFile": "Dockerfile",
+  "init": true,
+  // Mount the entire project into /workspace
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+  // Run the VS Code server as root once so onCreateCommand can chown /workspace,
+  // then switch to ubuntu for the editor session.
+  "runArgs": [
+    "--name",
+    "git-pluck-dev"
+  ],
+  "remoteUser": "ubuntu",
+  "onCreateCommand": [
+    "chown",
+    "-R",
+    "ubuntu:ubuntu",
+    "/workspace"
+  ],
+  // Keep terminal colors and paging in non-interactive tool output
+  "containerEnv": {
+    "CLICOLOR": "1",
+    "FORCE_COLOR": "1",
+    "PAGER": "cat",
+    "CARGO_TARGET_DIR": "/workspace/target"
+  },
+  // Recommended VS Code extensions for Rust development
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.targetDir": "${workspaceFolder}/target",
+        "rust-analyzer.check.command": "clippy"
+      }
+    }
+  }
+}

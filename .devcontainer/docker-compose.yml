@@ -1,0 +1,27 @@
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+
+    # Run as ubuntu (UID 1000) so files created inside the container are
+    # writable from the host.
+    user: "${UID:-1000}:${GID:-1000}"
+
+    volumes:
+      - ..:/workspace:cached
+
+    # Keep terminal colours and tool output readable
+    environment:
+      CLICOLOR: "1"
+      FORCE_COLOR: "1"
+
+    # Override the default /bin/bash with whatever you need.
+    #   docker compose up            → interactive shell
+    #   docker compose run dev bash  → interactive shell
+    #   docker compose run dev cargo build
+    stdin_open: true
+    tty: true
+
+    # Human-readable container name
+    container_name: git-pluck-dev

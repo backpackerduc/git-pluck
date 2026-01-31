@@ -1,0 +1,14 @@
+# Build output
+/target/
+
+# IDE
+.claude/
+.vscode/*.log
+rust_analyzer.log
+
+# Rust analyzer cache
+.rust-analyzer.json
+
+# OS
+.DS_Store
+Thumbs.db
