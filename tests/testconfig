@@ -1,0 +1,14 @@
+[pluck]
+    recursive = true
+    logBranch = true
+    allowIncompleteAncestry = true
+    allowMissingPath = true
+
+[forward.from "tool"]
+    to = lib/to
+
+[forward.from "lib"]
+    to = lib/li
+
+[forward.from "doc"]
+    to = lib/do
