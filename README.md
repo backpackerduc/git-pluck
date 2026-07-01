@@ -1,5 +1,9 @@
 # [WARNING] Still buggy and under development
 
+- Easy cases work
+  - linear history
+- Complex commit history cause issues
+
 # [DRAFT] `git-pluck`
 
 Create a separate Git branch containing a mapped subset of a repository's files, with full commit history preserved.
