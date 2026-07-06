@@ -95,6 +95,13 @@ fn validate_sanity_checks(config: &PluckConfig) -> anyhow::Result<()> {
         anyhow::bail!("--allow-unchanged-tree and --recursive cannot be combined");
     }
 
+    if config.ignorant_pluck.is_some()
+        && !config.ignorant_pluck.as_ref().unwrap().is_empty()
+        && config.recursive
+    {
+        anyhow::bail!("--ignorant-pluck and --recursive cannot be combined");
+    }
+
     if !config.log_branch && !config.log_message {
         anyhow::bail!("At least one of --log-branch or --log-message must be enabled");
     }
@@ -626,6 +633,28 @@ mod tests {
         let result = validate_sanity_checks(&config);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("cannot be combined"));
+    }
+
+    #[test]
+    fn test_sanity_checks_ignorant_pluck_recursive() {
+        let config = PluckConfig {
+            ignorant_pluck: Some("refs/heads/my-branch".to_string()),
+            recursive: true,
+            ..Default::default()
+        };
+        let result = validate_sanity_checks(&config);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("cannot be combined"));
+    }
+
+    #[test]
+    fn test_sanity_checks_ignorant_pluck_no_recursive_ok() {
+        let config = PluckConfig {
+            ignorant_pluck: Some("refs/heads/my-branch".to_string()),
+            recursive: false,
+            ..Default::default()
+        };
+        assert!(validate_sanity_checks(&config).is_ok());
     }
 
     #[test]
