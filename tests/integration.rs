@@ -859,6 +859,28 @@ fn test_error_allow_unchanged_tree_with_recursive() {
 }
 
 #[test]
+fn test_error_ignorant_pluck_with_recursive() {
+    let repo = TestRepo::new();
+    repo.commit_file("src.txt", "hello", "initial");
+
+    let config_path = repo.create_config("err_rec_ign", "[forward.from \"src.txt\"]\n    to = (Mirror)\n");
+
+    let out = repo.run_pluck(&[
+        "-c",
+        config_path.to_str().unwrap(),
+        "--ignorant-pluck=refs/heads/my-branch",
+        "--recursive",
+        "--log-branch",
+    ]);
+    assert_ne!(out.code, 0);
+    assert!(
+        out.stderr.contains("cannot be combined") || out.stderr.contains("error"),
+        "stderr: {}",
+        out.stderr
+    );
+}
+
+#[test]
 fn test_error_no_log_branch_no_log_message() {
     let repo = TestRepo::new();
     repo.commit_file("src.txt", "hello", "initial");

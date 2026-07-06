@@ -86,15 +86,7 @@ fn build_recursive_list(
     config: &PluckConfig,
     last_plucked_source_sha: Option<String>,
 ) -> anyhow::Result<Vec<(String, Vec<String>)>> {
-    let range = if let Some(ref ignorant_pluck_ref) = config.ignorant_pluck {
-        if !ignorant_pluck_ref.is_empty() {
-            format!("{}..{}", ignorant_pluck_ref, config.start_ref)
-        } else if let Some(last) = last_plucked_source_sha {
-            format!("{}..{}", last, config.start_ref)
-        } else {
-            config.start_ref.clone()
-        }
-    } else if let Some(last) = last_plucked_source_sha {
+    let range = if let Some(last) = last_plucked_source_sha {
         format!("{}..{}", last, config.start_ref)
     } else {
         config.start_ref.clone()
