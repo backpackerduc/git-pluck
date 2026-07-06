@@ -119,11 +119,11 @@ impl TestRepo {
         self.run_cmd("rev-parse", &["HEAD"])
     }
 
-    /// Create a config file at `.gitpluck/<pluckname>.cfg`.
+    /// Create a config file at `.gitpluck/<pluckname>.pluck`.
     pub fn create_config(&self, pluckname: &str, content: &str) -> PathBuf {
         let config_dir = self.path.join(".gitpluck");
         fs::create_dir_all(&config_dir).unwrap();
-        let config_path = config_dir.join(format!("{pluckname}.cfg"));
+        let config_path = config_dir.join(format!("{pluckname}.pluck"));
         fs::write(&config_path, content).unwrap();
         config_path
     }

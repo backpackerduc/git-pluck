@@ -48,7 +48,7 @@ After installation, ensure `git-pluck` is on your `PATH`, or place it in a direc
 1. **Create a config file** defining what to pluck:
 
 ```ini
-# pluckname.cfg
+# pluckname.pluck
 [forward.from "src"]
     to = (Mirror)
 
@@ -62,7 +62,7 @@ After installation, ensure `git-pluck` is on your `PATH`, or place it in a direc
 2. **Run git-pluck**:
 
 ```bash
-git-pluck -c pluckname.cfg
+git-pluck -c pluckname.pluck
 ```
 
 3. **Result**: A new branch `refs/heads/pluck/pluckname` contains only `src/` and `README.md` (excluding `tests/`) with full commit history.
@@ -72,15 +72,15 @@ git-pluck -c pluckname.cfg
 A pluck branch name and the configuration file are resolved in this priority order:
 
 1. **Explicit file**: Path provided via `-c` / `--config` CLI flag
-2. **Embedded in tree**: `.gitpluck/<pluckname>/config.cfg` at the start reference (HEAD by default)
-3. **Working tree**: `.gitpluck/<pluckname>/config.cfg` in the working directory
+2. **Embedded in tree**: `.gitpluck/<pluckname>/config.pluck` at the start reference (HEAD by default)
+3. **Working tree**: `.gitpluck/<pluckname>/config.pluck` in the working directory
 
 The Pluck branch name defaults to the config file's basename.
 
 ### Config File Format
 
 Config files use standard Git INI format.
-They have any suffix, though `.ini` or `.cfg` make them easy to spot.
+They have can any suffix, though `.pluck` make them easy to spot.
 They have two categories of settings:
 
 ```ini
@@ -208,7 +208,7 @@ Create a branch containing only the `packages/web/` directory as the pluck root:
 ```
 
 ```bash
-git-pluck -c web_content.cfg
+git-pluck -c web_content.pluck
 ```
 
 ### Monorepo Backend/Frontend Split
@@ -268,13 +268,13 @@ git-pluck -c docs-standalone
 Pluck the full history of changes to a specific directory:
 
 ```bash
-git-pluck -c mysubproject.cfg --recursive --log-branch
+git-pluck -c mysubproject.pluck --recursive --log-branch
 ```
 
 Limit to the last 10 commits:
 
 ```bash
-git-pluck -c mycustomer.cfg --recursive=max-count:10 --log-branch
+git-pluck -c mycustomer.pluck --recursive=max-count:10 --log-branch
 ```
 
 ### Incremental Plucking
@@ -283,10 +283,10 @@ Run git-pluck multiple times. Only new commits since the last run are processed:
 
 ```bash
 # First run: processes all commits up to HEAD
-git-pluck -c mynewcustomer.cfg --recursive --log-branch
+git-pluck -c mynewcustomer.pluck --recursive --log-branch
 
 # Later: only processes new commits
-git-pluck -c mynewcustomer.cfg --recursive --log-branch
+git-pluck -c mynewcustomer.pluck --recursive --log-branch
 ```
 
 ### Author Anonymization
@@ -294,7 +294,7 @@ git-pluck -c mynewcustomer.cfg --recursive --log-branch
 Replace author info for all commits from external contributors:
 
 ```bash
-git-pluck -c compliance_correct.cfg --log-branch \
+git-pluck -c compliance_correct.pluck --log-branch \
     --rep-author-regex=".*@external\.com:" \
     --rep-author-name="External Contributor" \
     --rep-author-email="contributor@company.com"
@@ -307,7 +307,7 @@ The deny pattern (after `:`) overrides the allow: if an email matches the deny p
 Replace ALL authors unconditionally:
 
 ```bash
-git-pluck -c data_privacy.cfg --log-branch \
+git-pluck -c data_privacy.pluck --log-branch \
     --rep-author-name="Anonymous" \
     --rep-author-email="anon@company.com"
 ```
@@ -317,14 +317,14 @@ git-pluck -c data_privacy.cfg --log-branch \
 Replace all commit messages:
 
 ```bash
-git-pluck -c useless_commit_messages.cfg --log-branch \
+git-pluck -c useless_commit_messages.pluck --log-branch \
     --rep-message="Cherry-picked from monorepo"
 ```
 
 Remove lines matching a pattern (e.g., remove internal ticket references):
 
 ```bash
-git-pluck -c my.cfg --log-branch \
+git-pluck -c my.pluck --log-branch \
     --rep-message-filter="PROJ-[0-9]+"
 ```
 
@@ -333,7 +333,7 @@ git-pluck -c my.cfg --log-branch \
 Instead of creating `refs/heads/pluck/<pluckname>`, add pluck commit to existing branch with no regard commit history:
 
 ```bash
-git-pluck -c other.cfg --log-branch --ignorant-pluck=refs/heads/my-branch
+git-pluck -c other.pluck --log-branch --ignorant-pluck=refs/heads/my-branch
 ```
 
 ### Log Message Mode
@@ -341,7 +341,7 @@ git-pluck -c other.cfg --log-branch --ignorant-pluck=refs/heads/my-branch
 Source SHAs logged in pluck commit messages (`Plucked from: <SHA>` trailer) instead of a log branch:
 
 ```bash
-git-pluck -c my.cfg --log-message --no-log-branch
+git-pluck -c my.pluck --log-message --no-log-branch
 ```
 
 ### Map Management
@@ -349,28 +349,28 @@ git-pluck -c my.cfg --log-message --no-log-branch
 Add a mapping to an existing config:
 
 ```bash
-git-pluck -c my.cfg --add-map="new/path:destination"
-git-pluck -c my.cfg --add-map="just/include"       # mirror map
-git-pluck -c my.cfg --add-map="remove/this:(Remove)"  # remove
+git-pluck -c my.pluck --add-map="new/path:destination"
+git-pluck -c my.pluck --add-map="just/include"       # mirror map
+git-pluck -c my.pluck --add-map="remove/this:(Remove)"  # remove
 ```
 
 Remove a mapping:
 
 ```bash
-git-pluck -c my.cfg --remove="path/to/remove"
+git-pluck -c my.pluck --remove="path/to/remove"
 ```
 
 Validate the current map:
 
 ```bash
-git-pluck -c my.cfg --check-config
+git-pluck -c my.pluck --check-config
 ```
 
 List sources and destinations:
 
 ```bash
-git-pluck -c my.cfg --show-src-paths
-git-pluck -c my.cfg --show-dst-paths
+git-pluck -c my.pluck --show-src-paths
+git-pluck -c my.pluck --show-dst-paths
 ```
 
 ### Query Mappings
@@ -378,13 +378,13 @@ git-pluck -c my.cfg --show-dst-paths
 Find the source SHA for a pluck SHA:
 
 ```bash
-git-pluck -c my.cfg --find-source-sha=<pluck-sha>
+git-pluck -c my.pluck --find-source-sha=<pluck-sha>
 ```
 
 Find the pluck SHA for an source SHA:
 
 ```bash
-git-pluck -c my.cfg --find-pluck-sha=<source-sha>
+git-pluck -c my.pluck --find-pluck-sha=<source-sha>
 ```
 
 ## CLI Reference
@@ -487,7 +487,7 @@ git-pluck creates refs within the repository:
 
 ## Example Config files
 
-A comprehensive example using most available options: [pluck_examples.cfg](pluck_config_examples).
+A comprehensive example using most available options: [pluck_examples.pluck](pluck_config_examples).
 
 ## FAQ
 

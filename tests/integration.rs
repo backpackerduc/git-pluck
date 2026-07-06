@@ -1407,11 +1407,11 @@ fn test_recursive_from_config() {
     repo.commit_file("src.txt", "v2", "commit 2");
 
     let config_content = "[forward.from \"src.txt\"]\n    to = (Mirror)\n\n[pluck]\n    recursive = true\n";
-    let config_path = repo.create_config("cfgrecursive", config_content);
+    let config_path = repo.create_config("configrecursive", config_content);
 
     repo.run_pluck_ok(&["-c", config_path.to_str().unwrap(), "--log-branch"]);
 
-    let pluck_count = repo.commit_count("refs/heads/pluck/cfgrecursive");
+    let pluck_count = repo.commit_count("refs/heads/pluck/configrecursive");
     assert!(pluck_count >= 1);
 }
 
@@ -1426,13 +1426,13 @@ fn test_no_recursive_overrides_config() {
     repo.commit_file("src.txt", "v2", "commit 2");
 
     let config_content = "[forward.from \"src.txt\"]\n    to = (Mirror)\n\n[pluck]\n    recursive = true\n";
-    let config_path = repo.create_config("cfgnorecursive", config_content);
+    let config_path = repo.create_config("confignorecursive", config_content);
 
     // --no-recursive should override the config file value
     repo.run_pluck_ok(&["-c", config_path.to_str().unwrap(), "--no-recursive", "--log-branch"]);
 
     // Should process only HEAD (single commit mode)
-    let pluck_count = repo.commit_count("refs/heads/pluck/cfgnorecursive");
+    let pluck_count = repo.commit_count("refs/heads/pluck/confignorecursive");
     assert_eq!(pluck_count, 1);
 }
 

@@ -1,7 +1,7 @@
 # =============================================================================
 # Example git-pluck config
-# File: pluck_examples.cfg
-# Pluck branch name: pluck_examples (derived from filename)
+# File: config_examples.pluck
+# Pluck branch name: config_examples (derived from filename)
 #
 # This file demonstrates most available options. Options that contradict
 # each other are commented out with an explanation.

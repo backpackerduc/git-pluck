@@ -20,11 +20,7 @@ use crate::tree::{build_pluck_tree, create_tree_objects, get_empty_tree_oid};
 /// `repo` - the git repository
 /// `pluckname` - the Pluck name for ref paths
 /// `config` - merged config from file + CLI
-pub fn run_pluck(
-    repo: &git2::Repository,
-    pluckname: &str,
-    config: &PluckConfig,
-) -> anyhow::Result<()> {
+pub fn run_pluck(repo: &git2::Repository, pluckname: &str, config: &PluckConfig) -> anyhow::Result<()> {
     validate_sanity_checks(config)?;
 
     let map_entries = build_pluck_map(config)?;

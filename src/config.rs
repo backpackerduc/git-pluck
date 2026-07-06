@@ -106,21 +106,21 @@ pub fn resolve_config(
     Ok((config, config_path))
 }
 
-/// Try to find a config file embedded in the start reference tree at `.gitpluck/<pluckname>.cfg`.
+/// Try to find a config file embedded in the start reference tree at `.gitpluck/<pluckname>.pluck`.
 fn resolve_embedded_config(pluckname: &str, start_ref: &str) -> Option<PathBuf> {
     let repo = git2::Repository::open_from_env().ok()?;
     let commit = repo.revparse_single(start_ref).ok()?.into_commit().ok()?;
     let tree = commit.tree().ok()?;
-    let config_path = format!(".gitpluck/{pluckname}.cfg");
+    let config_path = format!(".gitpluck/{pluckname}.pluck");
     tree.get_path(&PathBuf::from(&config_path)).ok()?.to_object(&repo).ok()?;
     Some(PathBuf::from(&config_path))
 }
 
-/// Try to find a config file at `.gitpluck/<pluckname>.cfg` in the working directory.
+/// Try to find a config file at `.gitpluck/<pluckname>.pluck` in the working directory.
 fn resolve_working_tree_config(pluckname: &str) -> Option<PathBuf> {
     let repo = git2::Repository::open_from_env().ok()?;
     let workdir = repo.workdir()?.to_path_buf();
-    let config_path = workdir.join(".gitpluck").join(format!("{pluckname}.cfg"));
+    let config_path = workdir.join(".gitpluck").join(format!("{pluckname}.pluck"));
     if config_path.exists() { Some(config_path) } else { None }
 }
 
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_get_pluckname_src_path_with_extension() {
-        let path = Path::new("/some/path/mypluck.cfg");
+        let path = Path::new("/some/path/mypluck.pluck");
         assert_eq!(get_pluckname(Some(path)), "mypluck");
     }
 
