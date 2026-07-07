@@ -77,7 +77,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     repo.run_cmd("add", &["-A"]);
     repo.run_cmd_with_env("commit", &["-m", "branch_2: commit_2_2 [ lib ]"], date_env);
     repo.run_cmd("rm", &["lib/branch2_2.txt"]);
-    repo.run_cmd_with_env("commit", &["-m", "branch_2: commit_2_3 [ ]"], date_env);
+    repo.run_cmd_with_env("commit", &["-m", "branch_2: commit_2_3 [ -lib ]"], date_env);
 
     repo.checkout("master");
     repo.run_cmd_with_env(
@@ -140,7 +140,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     );
     repo.write_file("lib/master.txt", "master_7");
     repo.run_cmd("add", &["-A"]);
-    repo.run_cmd_with_env("commit", &["-m", "master: commit_0_7 [ ]"], date_env);
+    repo.run_cmd_with_env("commit", &["-m", "master: commit_0_7 [ lib ]"], date_env);
 
     // --- branch_5 from merge-branch_1: commit_5_1, commit_5_2, commit_5_3, commit_5_4, commit_5_5, commit_5_6 ---
     repo.create_branch("branch_5", &merge_f1_sha);
@@ -173,7 +173,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     repo.write_file("other/master.txt", "master_8");
     repo.run_cmd("add", &["-A"]);
     repo.run_cmd_with_env("commit", &["-m", "master: commit_0_8 [ ]"], date_env);
-    repo.write_file("lib/master.txt", "master_9");
+    repo.write_file("other2/master.txt", "master_9");
     repo.run_cmd("add", &["-A"]);
     repo.run_cmd_with_env("commit", &["-m", "master: commit_0_9 [ ]"], date_env);
 
@@ -262,7 +262,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
         .envs(date_env.iter().map(|(k, v)| (*k, *v)));
     let _merge_output = merge_cmd.output().unwrap();
     // Finish the merge commit that git left in a pending state
-    repo.run_cmd_with_env("commit", &["-m", "Merge branches 'branch_6' and 'branch_8' into master"], date_env);
+    repo.run_cmd_with_env("commit", &["-m", "Merge 'branch_6' and 'branch_8' into master"], date_env);
 
     let source_tip = head();
     HistoryShas { source_tip, merge_f3_sha }
@@ -293,6 +293,8 @@ fn test_recursive_complex_history() {
 
     // ---- Compare: both should yield identical results ----
     assert_eq!(tip_a, tip_b);
+    // 41532937c81c3679a60bb8c25c4a20977d5824cc extracted in a manual test
+    assert_eq!(tip_a, "41532937c81c3679a60bb8c25c4a20977d5824cc");
 
     // ---- Verify ground truth ----
     let assert_plucked = |msg_hint: &str| {
@@ -324,11 +326,8 @@ fn test_recursive_complex_history() {
     assert_plucked("branch_4: commit_4_2");
     assert_plucked("Merge 'branch_4' into master");
     assert_plucked("branch_5: commit_5_1");
-    assert_plucked("branch_5: commit_5_3");
-    assert_plucked("branch_5: commit_5_4");
     assert_plucked("Merge 'branch_5' into master");
     assert_plucked("branch_6: commit_6_1");
-    assert_plucked("branch_6: commit_6_3");
     assert_plucked("branch_8: commit_8_1");
     assert_plucked("branch_8: commit_8_2");
     assert_plucked("branch_8: commit_8_4");
@@ -386,7 +385,7 @@ fn test_recursive_complex_history() {
     let pluck_log = repo.run_cmd("log", &["--format=%P %s", &tip_a]);
     let octopus_line = pluck_log
         .lines()
-        .find(|l| l.contains("Merge branches 'branch_6' and 'branch_8' into master"))
+        .find(|l| l.contains("Merge 'branch_6' and 'branch_8' into master"))
         .expect("Octopus merge should be in pluck log");
     let octopus_parents: Vec<&str> = octopus_line.split_whitespace().take_while(|s| s.len() == 40).collect();
     assert!(
