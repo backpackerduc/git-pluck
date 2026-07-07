@@ -3,8 +3,9 @@ use test_utils::TestRepo;
 const TEST_CONFIG: &str = include_str!("testconfig");
 
 struct HistoryShas {
-    source_tip: String,
-    merge_f3_sha: String,
+    merge_branch5_sha: String,
+    octopus_merge: String,
+    octopus_ours: String,
 }
 
 /// Build a complex git history mirroring (49 source commits across
@@ -169,7 +170,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
         &["--no-ff", "-m", "Merge 'branch_5' into master", "-X", "theirs", "branch_5"],
         date_env,
     );
-    let merge_f3_sha = head();
+    let merge_branch5_sha = head();
     repo.write_file("other/master.txt", "master_8");
     repo.run_cmd("add", &["-A"]);
     repo.run_cmd_with_env("commit", &["-m", "master: commit_0_8 [ ]"], date_env);
@@ -178,7 +179,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     repo.run_cmd_with_env("commit", &["-m", "master: commit_0_9 [ ]"], date_env);
 
     // --- branch_6 from merge-branch_5: commit_6_1, commit_6_2, commit_6_3, commit_6_4, commit_6_5, commit_6_6 ---
-    repo.create_branch("branch_6", &merge_f3_sha);
+    repo.create_branch("branch_6", &merge_branch5_sha);
     repo.checkout("branch_6");
     repo.write_file("lib/lib.rs", "commit_6_1");
     repo.write_file("tool/tool.py", "commit_6_1");
@@ -198,7 +199,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     repo.run_cmd_with_env("commit", &["-m", "branch_6: commit_6_5 [ tool ]"], date_env);
 
     // --- branch_7 from merge-branch_5: commit_7_1, commit_7_2 ---
-    repo.create_branch("branch_7", &merge_f3_sha);
+    repo.create_branch("branch_7", &merge_branch5_sha);
     repo.checkout("branch_7");
     repo.write_file("foo", "commit_7_1");
     repo.run_cmd("add", &["-A"]);
@@ -242,10 +243,11 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
 
     // --- Octopus merge branch_6 and branch_8 into master ---
     repo.checkout("master");
+    let pre_octopus_merge = head();
     // branch_8 is an orphan branch with unrelated history, so the merge fails.
     // It sets up the index and parents correctly, we just need to commit.
-    let mut merge_cmd = std::process::Command::new("git");
-    merge_cmd
+    let mut octopus_merge_cmd = std::process::Command::new("git");
+    octopus_merge_cmd
         .args([
             "merge",
             "--no-ff",
@@ -260,12 +262,32 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
         ])
         .current_dir(repo.path())
         .envs(date_env.iter().map(|(k, v)| (*k, *v)));
-    let _merge_output = merge_cmd.output().unwrap();
+    let _merge_output = octopus_merge_cmd.output().unwrap();
     // Finish the merge commit that git left in a pending state
     repo.run_cmd_with_env("commit", &["-m", "Merge 'branch_6' and 'branch_8' into master"], date_env);
+    let octopus_merge = head();
 
-    let source_tip = head();
-    HistoryShas { source_tip, merge_f3_sha }
+    // --- Octopus merge branch_6 and branch_8 with 'ours' strategy ---
+    repo.create_branch("octopus_ours_branch", &pre_octopus_merge);
+    repo.checkout("octopus_ours_branch");
+    repo.run_cmd_with_env(
+        "merge",
+        &[
+            "--no-ff",
+            "-m",
+            "Merge ours 'branch_6' and 'branch_8' into octopus_ours_branch",
+            "--allow-unrelated-histories",
+            "--strategy",
+            "ours",
+            "--no-edit",
+            "branch_6",
+            "branch_8",
+        ],
+        date_env,
+    );
+    let octopus_ours = head();
+
+    HistoryShas { merge_branch5_sha, octopus_merge, octopus_ours }
 }
 
 #[test]
@@ -275,7 +297,7 @@ fn test_recursive_complex_history() {
 
     // ---- Run A: pluck full history in one go ----
     let config_a = repo.create_config("pluck_a", TEST_CONFIG);
-    repo.run_pluck_ok(&["-c", config_a.to_str().unwrap(), "-s", &shas.source_tip]);
+    repo.run_pluck_ok(&["-c", config_a.to_str().unwrap(), "-s", &shas.octopus_merge]);
     let tip_a = repo.get_ref("refs/heads/pluck/pluck_a").expect("Pluck branch A should exist");
     let count_a = repo.commit_count(&tip_a);
     let msgs_a = repo.commit_messages(&tip_a);
@@ -285,10 +307,10 @@ fn test_recursive_complex_history() {
     let config_b = repo.create_config("pluck_b", TEST_CONFIG);
 
     // Step 1: pluck up to merge-branch_5 (about halfway through history)
-    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.merge_f3_sha]);
+    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.merge_branch5_sha]);
 
     // Step 2: pluck the full history (should pick up only new commits)
-    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.source_tip]);
+    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.octopus_merge]);
     let tip_b = repo.get_ref("refs/heads/pluck/pluck_b").expect("Pluck branch B should exist");
 
     // ---- Compare: both should yield identical results ----
@@ -397,4 +419,8 @@ fn test_recursive_complex_history() {
 
     eprintln!("Pluck branch tip: {}", tip_a);
     eprintln!("Pluck commit count: {}", count_a);
+
+    let config_ours = repo.create_config("pluck_ours", TEST_CONFIG);
+
+    repo.run_pluck_ok(&["-c", config_ours.to_str().unwrap(), "-s", &shas.octopus_ours]);
 }
