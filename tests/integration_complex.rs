@@ -293,7 +293,7 @@ fn test_recursive_complex_history() {
 
     // ---- Compare: both should yield identical results ----
     assert_eq!(tip_a, tip_b);
-    // c71065020f8edced447ab15dd21e27b73447461f extracted in a manual test
+    // 41532937c81c3679a60bb8c25c4a20977d5824cc extracted in a manual test
     assert_eq!(tip_a, "41532937c81c3679a60bb8c25c4a20977d5824cc");
 
     // ---- Verify ground truth ----
