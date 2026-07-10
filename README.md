@@ -1,10 +1,4 @@
-# [WARNING] Still buggy and under development
-
-- Easy cases work
-  - linear history
-- Complex commit history cause issues
-
-# [DRAFT] `git-pluck`
+# `git-pluck`
 
 Create a separate Git branch containing a mapped subset of a repository's files, with full commit history preserved.
 
@@ -19,6 +13,15 @@ Original blob objects are reused (no content duplication), commit metadata is pr
 - **Vendor inclusion**: Include third-party code as a subtree with preserved history
 - **Privacy**: Replace author/committer info for commits from external contributors before sharing
 - **Submodule replacement**: Replace git-submodule workflows with a cleaner or just different branch-based approach
+- **AI Safety**: Only give a slice of the code to an AI-Agent.
+
+## Status of Development
+
+- Complex histories can be plucked. Integration tests are in place to make sure of that.
+- Documentation of "How to use" is comprehensive.
+- Documentation of "Design" in the works:
+  - Topology behavior when plucking needs to be explained.
+  - "What to expect"-examples to be added.
 
 ## Installation
 
