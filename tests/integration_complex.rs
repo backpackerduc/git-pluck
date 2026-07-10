@@ -3,8 +3,9 @@ use test_utils::TestRepo;
 const TEST_CONFIG: &str = include_str!("testconfig");
 
 struct HistoryShas {
-    source_tip: String,
-    merge_f3_sha: String,
+    merge_branch5_sha: String,
+    octopus_merge: String,
+    octopus_ours: String,
 }
 
 /// Build a complex git history mirroring (49 source commits across
@@ -169,7 +170,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
         &["--no-ff", "-m", "Merge 'branch_5' into master", "-X", "theirs", "branch_5"],
         date_env,
     );
-    let merge_f3_sha = head();
+    let merge_branch5_sha = head();
     repo.write_file("other/master.txt", "master_8");
     repo.run_cmd("add", &["-A"]);
     repo.run_cmd_with_env("commit", &["-m", "master: commit_0_8 [ ]"], date_env);
@@ -178,7 +179,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     repo.run_cmd_with_env("commit", &["-m", "master: commit_0_9 [ ]"], date_env);
 
     // --- branch_6 from merge-branch_5: commit_6_1, commit_6_2, commit_6_3, commit_6_4, commit_6_5, commit_6_6 ---
-    repo.create_branch("branch_6", &merge_f3_sha);
+    repo.create_branch("branch_6", &merge_branch5_sha);
     repo.checkout("branch_6");
     repo.write_file("lib/lib.rs", "commit_6_1");
     repo.write_file("tool/tool.py", "commit_6_1");
@@ -198,7 +199,7 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
     repo.run_cmd_with_env("commit", &["-m", "branch_6: commit_6_5 [ tool ]"], date_env);
 
     // --- branch_7 from merge-branch_5: commit_7_1, commit_7_2 ---
-    repo.create_branch("branch_7", &merge_f3_sha);
+    repo.create_branch("branch_7", &merge_branch5_sha);
     repo.checkout("branch_7");
     repo.write_file("foo", "commit_7_1");
     repo.run_cmd("add", &["-A"]);
@@ -242,10 +243,11 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
 
     // --- Octopus merge branch_6 and branch_8 into master ---
     repo.checkout("master");
+    let pre_octopus_merge = head();
     // branch_8 is an orphan branch with unrelated history, so the merge fails.
     // It sets up the index and parents correctly, we just need to commit.
-    let mut merge_cmd = std::process::Command::new("git");
-    merge_cmd
+    let mut octopus_merge_cmd = std::process::Command::new("git");
+    octopus_merge_cmd
         .args([
             "merge",
             "--no-ff",
@@ -260,12 +262,32 @@ fn build_complex_history(repo: &TestRepo) -> HistoryShas {
         ])
         .current_dir(repo.path())
         .envs(date_env.iter().map(|(k, v)| (*k, *v)));
-    let _merge_output = merge_cmd.output().unwrap();
+    let _merge_output = octopus_merge_cmd.output().unwrap();
     // Finish the merge commit that git left in a pending state
     repo.run_cmd_with_env("commit", &["-m", "Merge 'branch_6' and 'branch_8' into master"], date_env);
+    let octopus_merge = head();
 
-    let source_tip = head();
-    HistoryShas { source_tip, merge_f3_sha }
+    // --- Octopus merge branch_6 and branch_8 with 'ours' strategy ---
+    repo.create_branch("octopus_ours_branch", &pre_octopus_merge);
+    repo.checkout("octopus_ours_branch");
+    repo.run_cmd_with_env(
+        "merge",
+        &[
+            "--no-ff",
+            "-m",
+            "Merge ours 'branch_6' and 'branch_8' into octopus_ours_branch",
+            "--allow-unrelated-histories",
+            "--strategy",
+            "ours",
+            "--no-edit",
+            "branch_6",
+            "branch_8",
+        ],
+        date_env,
+    );
+    let octopus_ours = head();
+
+    HistoryShas { merge_branch5_sha, octopus_merge, octopus_ours }
 }
 
 #[test]
@@ -275,7 +297,7 @@ fn test_recursive_complex_history() {
 
     // ---- Run A: pluck full history in one go ----
     let config_a = repo.create_config("pluck_a", TEST_CONFIG);
-    repo.run_pluck_ok(&["-c", config_a.to_str().unwrap(), "-s", &shas.source_tip]);
+    repo.run_pluck_ok(&["-c", config_a.to_str().unwrap(), "-s", &shas.octopus_merge]);
     let tip_a = repo.get_ref("refs/heads/pluck/pluck_a").expect("Pluck branch A should exist");
     let count_a = repo.commit_count(&tip_a);
     let msgs_a = repo.commit_messages(&tip_a);
@@ -285,16 +307,16 @@ fn test_recursive_complex_history() {
     let config_b = repo.create_config("pluck_b", TEST_CONFIG);
 
     // Step 1: pluck up to merge-branch_5 (about halfway through history)
-    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.merge_f3_sha]);
+    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.merge_branch5_sha]);
 
     // Step 2: pluck the full history (should pick up only new commits)
-    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.source_tip]);
+    repo.run_pluck_ok(&["-c", config_b.to_str().unwrap(), "-s", &shas.octopus_merge]);
     let tip_b = repo.get_ref("refs/heads/pluck/pluck_b").expect("Pluck branch B should exist");
 
     // ---- Compare: both should yield identical results ----
     assert_eq!(tip_a, tip_b);
-    // 41532937c81c3679a60bb8c25c4a20977d5824cc extracted in a manual test
-    assert_eq!(tip_a, "41532937c81c3679a60bb8c25c4a20977d5824cc");
+    // Manually checked SHA
+    assert_eq!(tip_a, "a72638f75b64585284c3eb9192b7539cd45ca711");
 
     // ---- Verify ground truth ----
     let assert_plucked = |msg_hint: &str| {
@@ -332,17 +354,18 @@ fn test_recursive_complex_history() {
     assert_plucked("branch_8: commit_8_2");
     assert_plucked("branch_8: commit_8_4");
     assert_plucked("Merge 'branch_6' and 'branch_8' into master");
+    // Merge commits are always created (even with unchanged trees) to preserve topology
+    assert_plucked("Merge 'branch_2' into master");
+    assert_plucked("Merge 'branch_7' into branch_6");
 
-    // Should NOT be plucked
+    // Should NOT be plucked (linear commits with no mapped changes)
     assert_not_plucked("master: commit_0_1");
     assert_not_plucked("master: commit_0_3");
     assert_not_plucked("branch_1: commit_1_2");
     assert_not_plucked("branch_2: commit_2_1");
-    assert_not_plucked("Merge 'branch_2' into master");
     assert_not_plucked("branch_5: commit_5_2");
     assert_not_plucked("branch_6: commit_6_2");
     assert_not_plucked("branch_7: commit_7_1");
-    assert_not_plucked("Merge 'branch_7' into 'branch_6'");
     assert_not_plucked("branch_8: commit_8_3");
 
     // Verify the tip has the right files (mapped destinations, not sources)
@@ -397,4 +420,58 @@ fn test_recursive_complex_history() {
 
     eprintln!("Pluck branch tip: {}", tip_a);
     eprintln!("Pluck commit count: {}", count_a);
+
+    let config_ours = repo.create_config("pluck_ours", TEST_CONFIG);
+
+    repo.run_pluck_ok(&["-c", config_ours.to_str().unwrap(), "-s", &shas.octopus_ours]);
+
+    // Verify: octopus_ours pluck should include all history (merge commits with unchanged trees
+    // must still be created to connect separate histories)
+    let tip_ours = repo.get_ref("refs/heads/pluck/pluck_ours").expect("Pluck branch ours should exist");
+    let count_ours = repo.commit_count(&tip_ours);
+    let msgs_ours = repo.commit_messages(&tip_ours);
+
+    // Should have at least as many commits as the regular pluck (28), plus the octopus merge
+    assert!(
+        count_ours >= 28,
+        "octopus_ours pluck should have >= 28 commits, got {}. Messages: {:?}",
+        count_ours,
+        msgs_ours
+    );
+
+    // Should include main history commits
+    assert!(
+        msgs_ours.iter().any(|m| m.contains("master: commit_0_2")),
+        "Should contain commit_0_2. Messages: {:?}",
+        msgs_ours
+    );
+    assert!(
+        msgs_ours.iter().any(|m| m.contains("Merge 'branch_1' into master")),
+        "Should contain merge of branch_1. Messages: {:?}",
+        msgs_ours
+    );
+    assert!(
+        msgs_ours.iter().any(|m| m.contains("Merge 'branch_5' into master")),
+        "Should contain merge of branch_5. Messages: {:?}",
+        msgs_ours
+    );
+
+    // Should include branch_8 commits
+    assert!(
+        msgs_ours.iter().any(|m| m.contains("branch_8: commit_8_1")),
+        "Should contain branch_8 commit_8_1. Messages: {:?}",
+        msgs_ours
+    );
+    assert!(
+        msgs_ours.iter().any(|m| m.contains("branch_8: commit_8_6")),
+        "Should contain branch_8 commit_8_6. Messages: {:?}",
+        msgs_ours
+    );
+
+    // Should include the octopus_ours merge (even though tree is unchanged from first parent)
+    assert!(
+        msgs_ours.iter().any(|m| m.contains("Merge ours 'branch_6' and 'branch_8'")),
+        "Should contain octopus ours merge. Messages: {:?}",
+        msgs_ours
+    );
 }

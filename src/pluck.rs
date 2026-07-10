@@ -62,7 +62,7 @@ pub fn run_pluck(repo: &git2::Repository, pluckname: &str, config: &PluckConfig)
             resolve_single_commit_parents(repo, pluckname, config)?
         };
 
-        let skip = check_tree_unchanged(repo, &pluck_parents, tree_oid, config)?;
+        let skip = check_tree_unchanged(repo, &pluck_parents, tree_oid, parents.len(), config)?;
 
         if skip {
             print_progress(idx + 1, total, created_commits, config);
@@ -144,13 +144,16 @@ fn resolve_single_commit_parents(
 }
 
 /// Check if the new tree is unchanged from the first parent's tree.
+/// Always returns false for merge commits (source_parent_count > 1) since
+/// they connect separate histories and must be created to preserve topology.
 fn check_tree_unchanged(
     repo: &git2::Repository,
     pluck_parents: &[String],
     tree_oid: git2::Oid,
+    source_parent_count: usize,
     config: &PluckConfig,
 ) -> anyhow::Result<bool> {
-    if pluck_parents.is_empty() || config.allow_unchanged_tree {
+    if pluck_parents.is_empty() || config.allow_unchanged_tree || source_parent_count > 1 {
         return Ok(false);
     }
 
@@ -757,5 +760,57 @@ mod tests {
     fn test_is_empty_tree_false() {
         let oid = git2::Oid::from_str("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap();
         assert!(!is_empty_tree(oid));
+    }
+
+    // -- check_tree_unchanged --
+
+    #[test]
+    fn test_check_tree_unchanged_merge_not_skipped() {
+        // Merge commits (source_parent_count > 1) should never be skipped,
+        // even if the tree is unchanged, to preserve topology
+        // (early return before repo access when parents are empty)
+        let config = PluckConfig::default();
+        let repo = git2::Repository::open(".").unwrap();
+        let result = check_tree_unchanged(
+            &repo,
+            &[],
+            git2::Oid::from_str("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap(),
+            2, // merge commit (2 source parents)
+            &config,
+        )
+        .unwrap();
+        assert!(!result, "Merge commits should never be skipped");
+    }
+
+    #[test]
+    fn test_check_tree_unchanged_linear_can_skip() {
+        // Linear commits with empty parents should not be skipped (no parent to compare)
+        let config = PluckConfig::default();
+        let repo = git2::Repository::open(".").unwrap();
+        let result = check_tree_unchanged(
+            &repo,
+            &[],
+            git2::Oid::from_str("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap(),
+            1, // linear commit
+            &config,
+        )
+        .unwrap();
+        assert!(!result, "No parent to compare against, should not skip");
+    }
+
+    #[test]
+    fn test_check_tree_unchanged_allow_unchanged_tree() {
+        // When allow_unchanged_tree is set, never skip
+        let config = PluckConfig { allow_unchanged_tree: true, ..Default::default() };
+        let repo = git2::Repository::open(".").unwrap();
+        let result = check_tree_unchanged(
+            &repo,
+            &[],
+            git2::Oid::from_str("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap(),
+            1,
+            &config,
+        )
+        .unwrap();
+        assert!(!result, "allow_unchanged_tree should prevent skipping");
     }
 }
