@@ -195,26 +195,26 @@ pub struct Cli {
 /// String flags: `--flag=VAL` sets the value, `--no-flag` clears to empty string.
 /// CLI flags always take precedence over config file values.
 pub fn apply_cli_to_config(cli: &Cli, config: &mut crate::config::PluckConfig) {
-    if cli.force && !cli.no_force {
-        config.force = true;
-    } else if cli.no_force {
+    if cli.no_force {
         config.force = false;
+    } else if cli.force {
+        config.force = true;
     }
 
     if let Some(Some(ref level)) = cli.debug {
         config.debug = level.parse().unwrap_or(1);
     }
 
-    if cli.allow_unchanged_tree && !cli.no_unchanged_tree {
-        config.allow_unchanged_tree = true;
-    } else if cli.no_unchanged_tree {
+    if cli.no_unchanged_tree {
         config.allow_unchanged_tree = false;
+    } else if cli.allow_unchanged_tree {
+        config.allow_unchanged_tree = true;
     }
 
-    if cli.mirror_map && !cli.no_mirror_map {
-        config.mirror_map =  true;
-    } else if cli.no_mirror_map {
-        config.mirror_map =  false;
+    if cli.no_mirror_map {
+        config.mirror_map = false;
+    } else if cli.mirror_map {
+        config.mirror_map = true;
     }
 
     if cli.quiet {
@@ -229,10 +229,10 @@ pub fn apply_cli_to_config(cli: &Cli, config: &mut crate::config::PluckConfig) {
         config.start_ref.clone_from(&cli.start_ref);
     }
 
-    if cli.allow_incomplete_ancestry && !cli.no_incomplete_ancestry {
-        config.allow_incomplete_ancestry = true;
-    } else if cli.no_incomplete_ancestry {
+    if cli.no_incomplete_ancestry {
         config.allow_incomplete_ancestry = false;
+    } else if cli.allow_incomplete_ancestry {
+        config.allow_incomplete_ancestry = true;
     }
 
     if let Some(opts) = &cli.recursive
@@ -246,40 +246,40 @@ pub fn apply_cli_to_config(cli: &Cli, config: &mut crate::config::PluckConfig) {
         config.recursive_opts = None;
     }
 
-    if cli.log_branch && !cli.no_log_branch {
-        config.log_branch = true;
-    } else if cli.no_log_branch {
+    if cli.no_log_branch {
         config.log_branch = false;
+    } else if cli.log_branch {
+        config.log_branch = true;
     }
 
-    if cli.skip_dedup_ancestry && !cli.no_skip_dedup_ancestry {
-        config.skip_dedup_ancestry = true;
-    } else if cli.no_skip_dedup_ancestry {
+    if cli.no_skip_dedup_ancestry {
         config.skip_dedup_ancestry = false;
+    } else if cli.skip_dedup_ancestry {
+        config.skip_dedup_ancestry = true;
     }
 
-    if cli.allow_missing_path && !cli.no_missing_path {
-        config.allow_missing_path = true;
-    } else if cli.no_missing_path {
+    if cli.no_missing_path {
         config.allow_missing_path = false;
+    } else if cli.allow_missing_path {
+        config.allow_missing_path = true;
     }
 
-    if cli.allow_nested_map && !cli.no_nested_map {
-        config.allow_nested_map =  true;
-    } else if cli.no_nested_map {
-        config.allow_nested_map =  false;
+    if cli.no_nested_map {
+        config.allow_nested_map = false;
+    } else if cli.allow_nested_map {
+        config.allow_nested_map = true;
     }
 
-    if cli.auto_reverse_map && !cli.no_auto_reverse_map {
-        config.auto_reverse_map =  true;
-    } else if cli.no_auto_reverse_map {
-        config.auto_reverse_map =  false;
+    if cli.no_auto_reverse_map {
+        config.auto_reverse_map = false;
+    } else if cli.auto_reverse_map {
+        config.auto_reverse_map = true;
     }
 
-    if cli.log_message && !cli.no_log_message {
-        config.log_message = true;
-    } else if cli.no_log_message {
+    if cli.no_log_message {
         config.log_message = false;
+    } else if cli.log_message {
+        config.log_message = true;
     }
 
     apply_string_flag(cli.rep_author_name.as_deref(), cli.no_rep_author_name, &mut config.rep_author_name);
