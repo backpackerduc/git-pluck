@@ -457,8 +457,9 @@ git-pluck [OPTIONS] [PLUCKNAME]
 
 ### Negation Flags
 
-Every boolean and string flag has a `--no-X` variant that explicitly disables or clears the setting, overriding any config file value.
+Most boolean and string flags have a `--no-X` variant that explicitly disables or clears the setting, overriding any config file value.
 For example: `--no-log-branch`, `--no-rep-author-name`, `--no-recursive`.
+Also, `--no-X` always takes precedence over `--X`, regardless of order on the command line.
 
 ## Exit Codes
 
