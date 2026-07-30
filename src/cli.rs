@@ -194,6 +194,7 @@ pub struct Cli {
 /// Boolean flags: `--flag` or `--allow-flag` sets true, `--no-flag` sets false.
 /// String flags: `--flag=VAL` sets the value, `--no-flag` clears to empty string.
 /// CLI flags always take precedence over config file values.
+/// `--no-flag` always takes precedence over `--flag`.
 pub fn apply_cli_to_config(cli: &Cli, config: &mut crate::config::PluckConfig) {
     if cli.no_force {
         config.force = false;
