@@ -161,6 +161,63 @@ fn test_env_pluck_test_mode() {
     assert_eq!(output.status.code().unwrap_or(-1), 0);
 }
 
+fn run_missing_config_with_no_return_error(value: Option<&str>) -> (i32, String) {
+    let repo = TestRepo::new();
+    repo.commit_file("initial.txt", "hello", "initial");
+
+    let mut command = Command::new(env!("CARGO_BIN_EXE_git-pluck"));
+    command.args(["-c", "/nonexistent/path/config", "--show-src-paths"]).current_dir(repo.path());
+
+    if let Some(value) = value {
+        command.env("PLUCK_NO_RETURN_ERROR", value);
+    } else {
+        command.env_remove("PLUCK_NO_RETURN_ERROR");
+    }
+
+    let output = command.output().expect("Failed to run git-pluck");
+    (output.status.code().unwrap_or(-1), String::from_utf8_lossy(&output.stderr).to_string())
+}
+
+#[test]
+fn test_no_return_error_unset_keeps_error_exit() {
+    let (code, stderr) = run_missing_config_with_no_return_error(None);
+
+    assert_eq!(code, 2);
+    assert!(stderr.contains("Error:"));
+}
+
+#[test]
+fn test_no_return_error_zero_keeps_error_exit() {
+    let (code, stderr) = run_missing_config_with_no_return_error(Some("0"));
+
+    assert_eq!(code, 2);
+    assert!(stderr.contains("Error:"));
+}
+
+#[test]
+fn test_no_return_error_empty_keeps_error_exit() {
+    let (code, stderr) = run_missing_config_with_no_return_error(Some(""));
+
+    assert_eq!(code, 2);
+    assert!(stderr.contains("Error:"));
+}
+
+#[test]
+fn test_no_return_error_nonzero_returns_success_on_error() {
+    let (code, stderr) = run_missing_config_with_no_return_error(Some("1"));
+
+    assert_eq!(code, 0);
+    assert!(stderr.contains("Error:"));
+}
+
+#[test]
+fn test_no_return_error_arbitrary_returns_success_on_error() {
+    let (code, stderr) = run_missing_config_with_no_return_error(Some("true"));
+
+    assert_eq!(code, 0);
+    assert!(stderr.contains("Error:"));
+}
+
 // ============================================================================
 // Map building tests
 // ============================================================================
@@ -1228,29 +1285,6 @@ fn test_allow_unchanged_tree_single_commit() {
 
     let second_sha = repo.get_ref("refs/heads/pluck/force_new").unwrap();
     assert_ne!(first_sha, second_sha, "--allow-unchanged-tree should create a new commit even with unchanged tree");
-}
-
-// ============================================================================
-// PLUCK_NO_RETURN_ERROR tests
-// ============================================================================
-
-#[test]
-fn test_pluck_no_return_error() {
-    let repo = TestRepo::new();
-    repo.commit_file("init.txt", "init", "initial");
-
-    // Missing log branch and log message  should normally exit 2
-    let config_path = repo.create_config("noerr", "[forward.from \"init.txt\"]\n    to = (Mirror)\n");
-
-    let output = Command::new(env!("CARGO_BIN_EXE_git-pluck"))
-        .args(["-c", config_path.to_str().unwrap(), "--no-log-branch"])
-        .env("PLUCK_NO_RETURN_ERROR", "1")
-        .current_dir(repo.path())
-        .output()
-        .expect("Failed to run git-pluck");
-
-    // Should return 0 instead of 2
-    assert_eq!(output.status.code().unwrap_or(-1), 0, "PLUCK_NO_RETURN_ERROR should make all errors return 0");
 }
 
 // ============================================================================
