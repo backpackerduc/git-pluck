@@ -5,6 +5,7 @@
 .claude/
 .vscode/*.log
 rust_analyzer.log
+workspace.code-workspace
 
 # Rust analyzer cache
 .rust-analyzer.json
