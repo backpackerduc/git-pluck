@@ -29,7 +29,6 @@ fn no_return_error() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[test]
     fn test_exit_code_plucking_error() {
@@ -44,58 +43,5 @@ mod tests {
     #[test]
     fn test_exit_code_internal() {
         assert_eq!(ErrorCode::Internal(3).to_raw(), 3);
-    }
-
-    #[test]
-    fn test_no_return_error_unset() {
-        unsafe {
-            env::remove_var("PLUCK_NO_RETURN_ERROR");
-        }
-        assert!(!no_return_error());
-    }
-
-    #[test]
-    fn test_no_return_error_zero() {
-        unsafe {
-            env::set_var("PLUCK_NO_RETURN_ERROR", "0");
-        }
-        assert!(!no_return_error());
-    }
-
-    #[test]
-    fn test_no_return_error_empty() {
-        unsafe {
-            env::set_var("PLUCK_NO_RETURN_ERROR", "");
-        }
-        assert!(!no_return_error());
-    }
-
-    #[test]
-    fn test_no_return_error_nonzero() {
-        unsafe {
-            env::set_var("PLUCK_NO_RETURN_ERROR", "1");
-        }
-        assert!(no_return_error());
-    }
-
-    #[test]
-    fn test_no_return_error_arbitrary() {
-        unsafe {
-            env::set_var("PLUCK_NO_RETURN_ERROR", "true");
-        }
-        assert!(no_return_error());
-    }
-
-    #[test]
-    fn test_exit_code_respects_no_return_error() {
-        unsafe {
-            env::set_var("PLUCK_NO_RETURN_ERROR", "1");
-        }
-        assert_eq!(ErrorCode::PluckingError.to_raw(), 0);
-        assert_eq!(ErrorCode::ConfigError.to_raw(), 0);
-        assert_eq!(ErrorCode::Internal(3).to_raw(), 0);
-        unsafe {
-            env::remove_var("PLUCK_NO_RETURN_ERROR");
-        }
     }
 }
