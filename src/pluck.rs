@@ -45,7 +45,7 @@ pub fn run_pluck(repo: &git2::Repository, pluckname: &str, config: &PluckConfig)
     let total = revisions.len();
 
     for (idx, (commit_sha, parents)) in revisions.iter().enumerate() {
-        source_history.prepend(commit_sha.clone(), parents.clone());
+        source_history.insert(commit_sha.clone(), parents.clone());
 
         let pluck_tree = build_pluck_tree(commit_sha, &map_entries, config)?;
 
@@ -95,10 +95,7 @@ fn validate_sanity_checks(config: &PluckConfig) -> anyhow::Result<()> {
         anyhow::bail!("--allow-unchanged-tree and --recursive cannot be combined");
     }
 
-    if config.ignorant_pluck.is_some()
-        && !config.ignorant_pluck.as_ref().unwrap().is_empty()
-        && config.recursive
-    {
+    if config.ignorant_pluck.is_some() && !config.ignorant_pluck.as_ref().unwrap().is_empty() && config.recursive {
         anyhow::bail!("--ignorant-pluck and --recursive cannot be combined");
     }
 
@@ -179,24 +176,27 @@ fn create_pluck_commit(
     config: &PluckConfig,
 ) -> anyhow::Result<git2::Oid> {
     let source_oid = git2::Oid::from_str(source_sha).context("Invalid source SHA")?;
-    let start_ref = repo.find_commit(source_oid).context("Failed to find source commit")?;
+    let source_commit = repo.find_commit(source_oid).context("Failed to find source commit")?;
 
-    let (author_name, author_email) = resolve_author(config, &start_ref);
-    let (committer_name, committer_email) = resolve_committer(config, &start_ref);
+    let (author_name, author_email) = resolve_author(config, &source_commit);
+    let (committer_name, committer_email) = resolve_committer(config, &source_commit);
 
     let author_sig = git2::Signature::new(
         &author_name,
         &author_email,
-        &git2::Time::new(start_ref.author().when().seconds(), start_ref.author().when().offset_minutes() * 60),
+        &git2::Time::new(source_commit.author().when().seconds(), source_commit.author().when().offset_minutes() * 60),
     )?;
 
     let committer_sig = git2::Signature::new(
         &committer_name,
         &committer_email,
-        &git2::Time::new(start_ref.committer().when().seconds(), start_ref.committer().when().offset_minutes() * 60),
+        &git2::Time::new(
+            source_commit.committer().when().seconds(),
+            source_commit.committer().when().offset_minutes() * 60,
+        ),
     )?;
 
-    let message = resolve_message(config, start_ref.message().unwrap_or(""))?;
+    let message = resolve_message(config, source_commit.message().unwrap_or(""))?;
     let message = if config.log_message { add_source_sha(&message, source_sha)? } else { message };
 
     let tree = repo.find_tree(tree_oid).context("Failed to find tree")?;
