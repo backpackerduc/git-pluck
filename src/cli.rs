@@ -43,10 +43,11 @@ pub struct Cli {
     #[arg(short = 'p', long = "allow-incomplete-ancestry", help = "Allow incomplete parent ancestry resolution")]
     pub allow_incomplete_ancestry: bool,
 
-    #[arg(short = 'r', 
-        long = "recursive", 
-        num_args = 0..=1, 
-        default_missing_value = "", 
+    #[arg(
+        short = 'r',
+        long = "recursive",
+        num_args = 0..=1,
+        default_missing_value = "",
         help = "Process commits recursively; optional ARGS passed to rev-list"
     )]
     pub recursive: Option<Option<String>>,
@@ -99,7 +100,11 @@ pub struct Cli {
     #[arg(long = "rep-author-email", help = "Replace the author email")]
     pub rep_author_email: Option<String>,
 
-    #[arg(long = "rep-author-regex", help = "Conditional author replacement via allow:deny regex")]
+    #[arg(
+        long = "rep-author-regex",
+        help = "Conditional author replacement via allow:deny regex, checks author E-Mail,
+requires rep-author-name and rep-author-email both to be set."
+    )]
     pub rep_author_regex: Option<String>,
 
     #[arg(long = "rep-committer-name", help = "Replace the committer name")]
@@ -108,7 +113,11 @@ pub struct Cli {
     #[arg(long = "rep-committer-email", help = "Replace the committer email")]
     pub rep_committer_email: Option<String>,
 
-    #[arg(long = "rep-committer-regex", help = "Conditional committer replacement via allow:deny regex")]
+    #[arg(
+        long = "rep-committer-regex",
+        help = "Conditional committer replacement via allow:deny regex, checks committer E-Mail
+requires rep-committer-name and rep-committer-email both to be set."
+    )]
     pub rep_committer_regex: Option<String>,
 
     #[arg(long = "rep-message", help = "Replace the entire commit message")]

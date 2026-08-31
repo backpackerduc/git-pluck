@@ -307,6 +307,7 @@ git-pluck -c compliance_correct.pluck --log-branch \
 The regex format is `allow_pattern:deny_pattern`.
 Emails matching the allow pattern are protected from replacement.
 The deny pattern (after `:`) overrides the allow: if an email matches the deny pattern, it is replaced regardless.
+`--rep-author-regex` requires both `--rep-author-name` and `--rep-author-email` to be set.
 
 Replace ALL authors unconditionally:
 
@@ -443,10 +444,10 @@ git-pluck [OPTIONS] [PLUCKNAME]
 |------|-----------|-------------|
 | `--rep-author-name=NAME` | `repAuthorName` | Replace author name |
 | `--rep-author-email=EMAIL` | `repAuthorEmail` | Replace author email |
-| `--rep-author-regex=REGEX` | `repAuthorRegex` | Conditional author replacement |
+| `--rep-author-regex=REGEX` | `repAuthorRegex` | Conditional author replacement, checks author E-Mail |
 | `--rep-committer-name=NAME` | `repCommitterName` | Replace committer name |
 | `--rep-committer-email=EMAIL` | `repCommitterEmail` | Replace committer email |
-| `--rep-committer-regex=REGEX` | `repCommitterRegex` | Conditional committer replacement |
+| `--rep-committer-regex=REGEX` | `repCommitterRegex` | Conditional committer replacement, checks committer E-Mail |
 | `--rep-message=MSG` | `repMessage` | Replace commit message |
 | `--rep-message-filter=REGEX` | `repMessageFilter` | Filter message lines |
 | `--log-message` | `logMessage` | Add source SHA to pluck commit message |
@@ -537,7 +538,6 @@ Code optimization and robustness:
 - Add integration test for `--auto-reverse-map`.
 - check if `tree::is_overridden` can be removed.
 - tree.rs: `if let Some(first_line) = stdout.lines().next()` unnecessary
-  - `parent::is_ancestor_of` naming is slightly confusing, check for better naming
 - `parent::load_from_log_branch` should only check first parents of the log branch!
 - `log::get_from_log_branch`: either 3 parents or error!!!,  integration test!
 - distinguish `let current_log_oid = repo.refname_to_id(&log_ref).ok();` in `log.rs` between not found and actual error,  integration test!
@@ -554,6 +554,7 @@ Bug/misc fixes:
   - "Map building tests" only check the config but not the result when applying the config
     - double check with "Tree constructions tests" and add comment/explaination or add tests
   - `--find-source-sha`, `--find-pluck-sha` not tested yet
+  - is_ancestor_of
 - Single file removal is buggy:
   - removing one file in a folder without mentioning other objects in that folder (not even via parent folder)
     silently makes those other objects surive even though they are not mentioned.
