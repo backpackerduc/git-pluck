@@ -262,11 +262,11 @@ fn dedup_parents(parents: &[String], source_parent_count: usize, skip_dedup: boo
     if !is_merge {
         let mut deduped: Vec<String> = Vec::new();
         for parent_a in &result {
-            let is_ancestor_of_existing = deduped.iter().any(|parent_b| is_ancestor_of(parent_b, parent_a));
+            let is_ancestor_of_existing = deduped.iter().any(|parent_b| is_ancestor_of(parent_a, parent_b));
             if is_ancestor_of_existing {
                 continue;
             }
-            deduped.retain(|parent_b| !is_ancestor_of(parent_a, parent_b));
+            deduped.retain(|parent_b| !is_ancestor_of(parent_b, parent_a));
             deduped.push(parent_a.clone());
         }
         result = deduped;
@@ -275,8 +275,8 @@ fn dedup_parents(parents: &[String], source_parent_count: usize, skip_dedup: boo
     Ok(result)
 }
 
-/// Check if `child` is a descendant of `ancestor` via `git rev-list`.
-fn is_ancestor_of(child: &str, ancestor: &str) -> bool {
+/// Check if `ancestor` is a ancestor of `child`.
+fn is_ancestor_of(ancestor: &str, child: &str) -> bool {
     let output = Command::new("git").args(["rev-list", "--max-count=1", &format!("{child}..{ancestor}")]).output();
 
     match output {
