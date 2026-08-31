@@ -539,9 +539,7 @@ Code optimization and robustness:
 - tree.rs: `if let Some(first_line) = stdout.lines().next()` unnecessary
   - `parent::is_ancestor_of` naming is slightly confusing, check for better naming
 - `parent::load_from_log_branch` should only check first parents of the log branch!
-- `log::get_last_plucked_source_sha`: check if `use_log_message` should be used instead of automatically use log message, unit test
 - `log::get_from_log_branch`: either 3 parents or error!!!,  integration test!
--  remove in `log.rs`: `// let start_ref_obj2 = repo.find_commit(start_ref)?;`
 - distinguish `let current_log_oid = repo.refname_to_id(&log_ref).ok();` in `log.rs` between not found and actual error,  integration test!
 - `log.rs`: `get_from_log_message` should use `cache::extract_pluck_source_sha` instead of reimplmenting
 - `log::get_from_log_message` must distinguish between ref no exists and other reasons for None/errors, integration test!
