@@ -553,6 +553,7 @@ Bug/misc fixes:
 - Integration tests:
   - "Map building tests" only check the config but not the result when applying the config
     - double check with "Tree constructions tests" and add comment/explaination or add tests
+  - `--find-source-sha`, `--find-pluck-sha` not tested yet
 - Single file removal is buggy:
   - removing one file in a folder without mentioning other objects in that folder (not even via parent folder)
     silently makes those other objects surive even though they are not mentioned.
