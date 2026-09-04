@@ -47,12 +47,12 @@ impl PluckCache {
             return Ok(());
         };
 
-        let commit = repo.find_commit(ref_obj).context("Failed to find log commit")?;
+        let first_log_commit = repo.find_commit(ref_obj).context("Failed to find log commit")?;
 
-        let mut oid = commit.id();
+        let mut current_oid = first_log_commit.id();
         loop {
-            let c = repo.find_commit(oid).context("Failed to find commit in log branch")?;
-            let message = c.message().unwrap_or("");
+            let current_log_commit = repo.find_commit(current_oid).context("Failed to find commit in log branch")?;
+            let message = current_log_commit.message().unwrap_or("");
             if !message.starts_with("[SOURCE:PLUCK]") {
                 break;
             }
@@ -65,10 +65,10 @@ impl PluckCache {
                     }
                 }
             }
-            if c.parent_count() == 0 {
+            if current_log_commit.parent_count() == 0 {
                 break;
             }
-            oid = c.parent_id(0).context("Failed to get parent of log commit")?;
+            current_oid = current_log_commit.parent_id(0).context("Failed to get parent of log commit")?;
         }
 
         Ok(())
