@@ -49,15 +49,13 @@ impl PluckCache {
 
         let commit = repo.find_commit(ref_obj).context("Failed to find log commit")?;
 
-        let mut rw = repo.revwalk()?;
-        rw.push(commit.id())?;
-        rw.set_sorting(git2::Sort::TOPOLOGICAL)?;
-
-        for oid in rw {
-            let oid = oid?;
-            let commit = repo.find_commit(oid).context("Failed to find commit in log branch")?;
-            let message = commit.message().unwrap_or("");
-
+        let mut oid = commit.id();
+        loop {
+            let c = repo.find_commit(oid).context("Failed to find commit in log branch")?;
+            let message = c.message().unwrap_or("");
+            if !message.starts_with("[SOURCE:PLUCK]") {
+                break;
+            }
             for line in message.lines() {
                 let line = line.trim();
                 if is_sha_pair(line) {
@@ -67,6 +65,10 @@ impl PluckCache {
                     }
                 }
             }
+            if c.parent_count() == 0 {
+                break;
+            }
+            oid = c.parent_id(0).context("Failed to get parent of log commit")?;
         }
 
         Ok(())
