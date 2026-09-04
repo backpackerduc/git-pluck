@@ -930,11 +930,7 @@ fn test_error_ignorant_pluck_with_recursive() {
         "--log-branch",
     ]);
     assert_ne!(out.code, 0);
-    assert!(
-        out.stderr.contains("cannot be combined") || out.stderr.contains("error"),
-        "stderr: {}",
-        out.stderr
-    );
+    assert!(out.stderr.contains("cannot be combined") || out.stderr.contains("error"), "stderr: {}", out.stderr);
 }
 
 #[test]
