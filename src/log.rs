@@ -7,7 +7,7 @@ use crate::cache::PluckCache;
 /// Find the last plucked source commit SHA using the configured log mechanism.
 ///
 /// Uses the log branch if `use_log_branch` is true,
-/// otherwise falls back to reading the log in the pluck commit message.
+/// otherwise function implicitly assumes that the source SHA is in the pluck commit message.
 pub fn get_last_plucked_source_sha(
     repo: &git2::Repository,
     pluckname: &str,
@@ -85,7 +85,6 @@ pub fn create_log_commit(
 
     let sig = git2::Signature::now("Git-Pluck", "git@pluck")?;
 
-    // let start_ref_obj2 = repo.find_commit(start_ref)?;
     let pluck_commit = repo.find_commit(pluck_tip)?;
 
     let current_log_commit = current_log_oid
@@ -100,7 +99,6 @@ pub fn create_log_commit(
     };
 
     let new_log_commit_oid = repo.commit(None, &sig, &sig, &message, &start_commit_tree, &parents)?;
-
     Ok(new_log_commit_oid)
 }
 

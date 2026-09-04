@@ -22,6 +22,7 @@ Original blob objects are reused (no content duplication), commit metadata is pr
 - Documentation of "Design" in the works:
   - Topology behavior when plucking needs to be explained.
   - "What to expect"-examples to be added.
+- See [ToDo list](#todo-list)
 
 ## Installation
 
@@ -306,6 +307,7 @@ git-pluck -c compliance_correct.pluck --log-branch \
 The regex format is `allow_pattern:deny_pattern`.
 Emails matching the allow pattern are protected from replacement.
 The deny pattern (after `:`) overrides the allow: if an email matches the deny pattern, it is replaced regardless.
+`--rep-author-regex` requires both `--rep-author-name` and `--rep-author-email` to be set.
 
 Replace ALL authors unconditionally:
 
@@ -330,6 +332,8 @@ Remove lines matching a pattern (e.g., remove internal ticket references):
 git-pluck -c my.pluck --log-branch \
     --rep-message-filter="PROJ-[0-9]+"
 ```
+
+Warning: `--rep-message` takes precedence over `--rep-message-filter`!
 
 ### Ignore Pluck History and add Pluck Commit on Arbitrary Branch
 
@@ -440,10 +444,10 @@ git-pluck [OPTIONS] [PLUCKNAME]
 |------|-----------|-------------|
 | `--rep-author-name=NAME` | `repAuthorName` | Replace author name |
 | `--rep-author-email=EMAIL` | `repAuthorEmail` | Replace author email |
-| `--rep-author-regex=REGEX` | `repAuthorRegex` | Conditional author replacement |
+| `--rep-author-regex=REGEX` | `repAuthorRegex` | Conditional author replacement, checks author E-Mail |
 | `--rep-committer-name=NAME` | `repCommitterName` | Replace committer name |
 | `--rep-committer-email=EMAIL` | `repCommitterEmail` | Replace committer email |
-| `--rep-committer-regex=REGEX` | `repCommitterRegex` | Conditional committer replacement |
+| `--rep-committer-regex=REGEX` | `repCommitterRegex` | Conditional committer replacement, checks committer E-Mail |
 | `--rep-message=MSG` | `repMessage` | Replace commit message |
 | `--rep-message-filter=REGEX` | `repMessageFilter` | Filter message lines |
 | `--log-message` | `logMessage` | Add source SHA to pluck commit message |
@@ -522,4 +526,39 @@ This preserves the natural file lifecycle.
 
 ## Use of Coding Agents
 
-`git-pluck` was developed under extensive use of Claude Code along with Qwen3.6-27b.
+`git-pluck` was developed under extensive use of Claude Code along with Qwen3.6-27b and Qwen3.8-27b.
+
+## ToDo List
+
+Quality of life:
+- Add warning in case of incorrect regex.
+- Check regex immediately when reading config/cli.
+
+Code optimization and robustness:
+- Add integration test for `--auto-reverse-map`.
+- check if `tree::is_overridden` can be removed.
+- tree.rs: `if let Some(first_line) = stdout.lines().next()` unnecessary
+- `parent::load_from_log_branch` should only check first parents of the log branch!
+- `log::get_from_log_branch`: either 3 parents or error!!!,  integration test!
+- distinguish `let current_log_oid = repo.refname_to_id(&log_ref).ok();` in `log.rs` between not found and actual error,  integration test!
+- `log.rs`: `get_from_log_message` should use `cache::extract_pluck_source_sha` instead of reimplmenting
+- `log::get_from_log_message` must distinguish between ref no exists and other reasons for None/errors, integration test!
+- `log::validate_log_pluck_consistency` should check for parent(2) instead of any, integration test!
+
+Bug/misc fixes:
+- fixing flattening file to root (`[forward.from folder/file.abc] to = .`)
+  - either remove option for files and check for it, or
+  - add functionality
+  - currently no functionality but one can still write such a config entry
+- Integration tests:
+  - "Map building tests" only check the config but not the result when applying the config
+    - double check with "Tree constructions tests" and add comment/explaination or add tests
+  - `--find-source-sha`, `--find-pluck-sha` not tested yet
+  - `pluck::is_ancestor_of`
+- Single file removal is buggy:
+  - removing one file in a folder without mentioning other objects in that folder (not even via parent folder)
+    silently makes those other objects surive even though they are not mentioned.
+  - Default behavior should be: If an object is not mentioned it should not be plucked
+  - emplace functions may need to be removed.
+- double check if the application of max-count for recursive case is correct
+  - at the moment the five oldest commits are used

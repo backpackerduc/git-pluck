@@ -14,7 +14,7 @@ use crate::config::PluckConfig;
 
 /// Maps source commit SHAs to their parent SHAs for transitive lookup.
 ///
-/// Built from `git rev-list --topo-order --parents` output, prepended with
+/// Built from `git rev-list --topo-order --parents` output, entries inserted with
 /// each processed revision as the plucking loop runs.
 pub struct SourceHistory {
     entries: HashMap<String, Vec<String>>,
@@ -30,7 +30,7 @@ impl SourceHistory {
     ///
     /// `commit_sha` - the commit being added
     /// `parents` - list of parent commit SHAs
-    pub fn prepend(&mut self, commit_sha: String, parents: Vec<String>) {
+    pub fn insert(&mut self, commit_sha: String, parents: Vec<String>) {
         self.entries.insert(commit_sha, parents);
     }
 
@@ -262,11 +262,11 @@ fn dedup_parents(parents: &[String], source_parent_count: usize, skip_dedup: boo
     if !is_merge {
         let mut deduped: Vec<String> = Vec::new();
         for parent_a in &result {
-            let is_ancestor_of_existing = deduped.iter().any(|parent_b| is_ancestor_of(parent_b, parent_a));
+            let is_ancestor_of_existing = deduped.iter().any(|parent_b| is_ancestor_of(parent_a, parent_b));
             if is_ancestor_of_existing {
                 continue;
             }
-            deduped.retain(|parent_b| !is_ancestor_of(parent_a, parent_b));
+            deduped.retain(|parent_b| !is_ancestor_of(parent_b, parent_a));
             deduped.push(parent_a.clone());
         }
         result = deduped;
@@ -275,8 +275,8 @@ fn dedup_parents(parents: &[String], source_parent_count: usize, skip_dedup: boo
     Ok(result)
 }
 
-/// Check if `child` is a descendant of `ancestor` via `git rev-list`.
-fn is_ancestor_of(child: &str, ancestor: &str) -> bool {
+/// Check if `ancestor` is a ancestor of `child`.
+fn is_ancestor_of(ancestor: &str, child: &str) -> bool {
     let output = Command::new("git").args(["rev-list", "--max-count=1", &format!("{child}..{ancestor}")]).output();
 
     match output {
@@ -298,9 +298,9 @@ mod tests {
     }
 
     #[test]
-    fn test_source_history_prepend_and_get() {
+    fn test_source_history_insert_and_get() {
         let mut history = SourceHistory::new();
-        history.prepend("commit1".to_string(), vec!["parent1".to_string(), "parent2".to_string()]);
+        history.insert("commit1".to_string(), vec!["parent1".to_string(), "parent2".to_string()]);
         let parents = history.get_parents("commit1").unwrap();
         assert_eq!(parents.len(), 2);
         assert_eq!(parents[0], "parent1");
@@ -310,7 +310,7 @@ mod tests {
     #[test]
     fn test_source_history_root_commit() {
         let mut history = SourceHistory::new();
-        history.prepend("root_commit".to_string(), vec![]);
+        history.insert("root_commit".to_string(), vec![]);
         let parents = history.get_parents("root_commit").unwrap();
         assert!(parents.is_empty());
     }
@@ -318,9 +318,9 @@ mod tests {
     #[test]
     fn test_source_history_multiple_commits() {
         let mut history = SourceHistory::new();
-        history.prepend("c1".to_string(), vec!["p1".to_string()]);
-        history.prepend("c2".to_string(), vec!["p2".to_string(), "p3".to_string()]);
-        history.prepend("c3".to_string(), vec![]);
+        history.insert("c1".to_string(), vec!["p1".to_string()]);
+        history.insert("c2".to_string(), vec!["p2".to_string(), "p3".to_string()]);
+        history.insert("c3".to_string(), vec![]);
 
         assert_eq!(history.get_parents("c1").unwrap().len(), 1);
         assert_eq!(history.get_parents("c2").unwrap().len(), 2);
