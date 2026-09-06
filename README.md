@@ -538,7 +538,6 @@ Code optimization and robustness:
 - Add integration test for `--auto-reverse-map`.
 - check if `tree::is_overridden` can be removed.
 - tree.rs: `if let Some(first_line) = stdout.lines().next()` unnecessary
-- `log::get_from_log_branch`: either 3 parents or error!!!,  integration test!
 - distinguish `let current_log_oid = repo.refname_to_id(&log_ref).ok();` in `log.rs` between not found and actual error,  integration test!
 - `log.rs`: `get_from_log_message` should use `cache::extract_pluck_source_sha` instead of reimplmenting
 - `log::get_from_log_message` must distinguish between ref no exists and other reasons for None/errors, integration test!
