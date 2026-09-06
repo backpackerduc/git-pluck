@@ -10,8 +10,8 @@ on:
   pull_request:
     branches: [master]
   schedule:
-    # GitHub Actions cron is evaluated in UTC, not local time.
-    # 23:00 UTC == midnight CET (winter). During summer (CEST, UTC+2) this fires at 01:00 local.
+    # GitHub Actions cron is evaluated in UTC.
+    # 23:00 UTC == midnight CET (winter). During summer (CEST, UTC+2) this fires at 01:00 CET.
     - cron: '0 23 * * *'
 
 # Baseline token scope. Jobs that talk to GHCR override this with the package scopes they need.
@@ -20,12 +20,12 @@ permissions:
 
 # ---------------------------------------------------------------------------
 # Image identity = a hash of the build inputs (.devcontainer/**), NOT the branch.
-#   The image is a build ENVIRONMENT (OS + Rust + libs); your code is mounted in at runtime,
+#   The image is a build ENVIRONMENT (OS + Rust + libs); code is mounted in at runtime,
 #   so it's identical across every branch/PR unless someone edits .devcontainer/. Same content
 #   -> same tag -> one shared image on GHCR reused by all of them. Computed automatically in each
 #   job (in a step AFTER checkout, because hashFiles needs the files present) — no manual tagging.
-#   Note: it hashes OUR files only, not the floating `ubuntu:24.04` base or apt/rustup downloads;
-#   pin the base by digest in the Dockerfile if you want byte-for-byte determinism.
+#   WARNING: it hashes OUR files only, not the floating `ubuntu:24.04` base or apt/rustup downloads;
+#   TODO: pin the base by digest in the Dockerfile if byte-for-byte determinism is required.
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
@@ -38,10 +38,8 @@ permissions:
 #   Add a new check by extending the matrix below (or adding a job); it reuses all the caches.
 # ---------------------------------------------------------------------------
 jobs:
-  # Build the devcontainer image ONCE per run and make sure it's on GHCR under its content-hash
-  # tag. Using GHCR as buildx's layer cache means a warm run restores layers from the registry
-  # (no apt/rustup) even after GitHub's 7-day GHA layer-cache eviction. Test jobs `needs:` this,
-  # so the image is guaranteed to exist before they pull it.
+  # Make sure the devcontainer image is on GHCR under its content-hash tag — building only when
+  # that tag doesn't exist yet (a warm run skips straight past).
   build-image:
     name: Build devcontainer image
     runs-on: ubuntu-latest
@@ -52,16 +50,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # hashFiles() must run after checkout (top-level env is evaluated before it, so we can't
-      # compute the tag there). Every job checks out the same .devcontainer/** -> same refs.
       - name: Resolve image refs
         id: img
         run: |
-          # GHCR requires a lowercase repository; GHA has no case function, so use tr.
+          # GHCR requires a lowercase repository; use tr for now.
           repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           tag="${{ hashFiles('.devcontainer/**') }}"
           echo "ref=ghcr.io/${repo}:${tag}" >> "$GITHUB_OUTPUT"
-          echo "cache_ref=ghcr.io/${repo}:${tag}-cache" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -73,22 +68,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # push=false on fork PRs (their read-only token can't write the base repo's packages). The
-      # build still runs locally so this job validates the Dockerfile; it just doesn't share a new
-      # image. Same-repo branches/PRs and pushes all push normally.
+      - name: Check if image already on GHCR
+        id: exists
+        run: |
+          if docker buildx imagetools inspect "${{ steps.img.outputs.ref }}" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # push=false on fork PRs (their read-only token can't write the base repo's packages);
+      # the build still runs locally to validate the Dockerfile, it just doesn't share a new image.
+      # Same-repo branches/PRs and pushes push.
       - name: Build and push devcontainer image
+        if: steps.exists.outputs.found == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .devcontainer
           file: .devcontainer/Dockerfile
           tags: ${{ steps.img.outputs.ref }}
           push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          cache-from: |
-            type=gha
-            type=registry,ref=${{ steps.img.outputs.cache_ref }}
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=${{ steps.img.outputs.cache_ref }},mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   test:
     name: Test (${{ matrix.profile }})
@@ -98,7 +99,7 @@ jobs:
       contents: read
       packages: read   # needed to pull the (private) image from GHCR
     strategy:
-      # Let every leg finish even if one fails, so you see all results at once.
+      # Let every leg finish even if one fails, so one sees all results at once.
       fail-fast: false
       matrix:
         profile: [debug, release]
@@ -123,13 +124,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # build-image already pushed this exact tag, so this is a plain pull of the shared image.
-      # (No buildx needed here — we only pull and run.)
       - name: Pull devcontainer image
         run: docker pull "${{ steps.img.outputs.ref }}"
 
-      # ONE shared crate cache. Keyed on Cargo.lock so it is reused by every job and run;
-      # restore-keys falls back to the most recent cache when dependencies change.
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -138,12 +135,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      # Compiled-artifact cache. The registry cache only saves crate *downloads*; this saves
-      # the *build* output, so a warm run skips recompiling dependencies entirely (usually the
-      # biggest time sink in a Rust CI). Keyed per profile — debug and release produce different
-      # artifacts and must not share an entry — plus Cargo.lock and the pinned toolchain, so a
-      # dependency or Rust change invalidates it. restore-keys reuses most deps when only some
-      # sources changed.
+      # Compiled-artifact cache.
+      # Keyed per profile — debug and release produce different artifacts and
+      # must not share an entry — plus Cargo.lock and the pinned toolchain.
       - name: Cache cargo target dir
         uses: actions/cache@v4
         with:
@@ -152,14 +146,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-target-${{ matrix.profile }}-
 
-      # Each leg runs in its own container. The registry and target dir are mounted from the
-      # shared caches, so isolated containers reuse downloaded crates and compiled artifacts
-      # instead of each re-downloading / recompiling.
-      #
       # Ownership: the image has no USER, so this runs as root (uid 0). libgit2 refuses to
       # open a repo whose owner uid != the process euid, and the bind-mounted /workspace is
       # owned by the host runner user (uid 1001 on GHA), not root. chowning it to root first
-      # makes the uids match so tests can open /workspace as a repository.
+      # (chown -R 0:0) makes the uids match so tests can open /workspace as a repository.
       - name: Run tests
         run: |
           mkdir -p "${{ runner.temp }}/cargo-registry" "${{ runner.temp }}/cargo-target"
