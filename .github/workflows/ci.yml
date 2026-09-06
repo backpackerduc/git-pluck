@@ -1,0 +1,63 @@
+name: CI
+
+# Run on every pull request that targets master (created, updated, or synced).
+on:
+  pull_request:
+    branches: [master]
+
+# Minimal token scope: we only need to read the repo (for checkout + cache reads).
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build & test in devcontainer image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # buildx is required for the GitHub Actions layer cache below.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the exact image the devcontainer uses.
+      #   context = .devcontainer  -> so `COPY entrypoint.sh` resolves (it lives there,
+      #                               not at the repo root).
+      #   load: true               -> load into the local docker daemon so `docker run`
+      #                               can use it (buildx otherwise keeps it in containerd).
+      #   cache-from/to: type=gha  -> reuse image layers across runs, so apt/rustup are
+      #                               not re-downloaded on every PR.
+      - name: Build devcontainer image
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          file: .devcontainer/Dockerfile
+          tags: git-pluck-ci:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Start ONE container that stays alive so both test steps below can `docker exec`
+      # into the SAME running container. That way cargo downloads the crates only once and
+      # we don't pay a second container start - while still keeping two separate checkmarks.
+      #   --entrypoint /usr/bin/sleep -> skip the dev-only ownership entrypoint (it chowns to a
+      #                                  `devuser` that doesn't exist in this image). The main
+      #                                  process only needs to keep the container alive, so it just sleeps.
+      #   -v ...:/workspace           -> mount the checkout where the image expects the code.
+      - name: Start test container
+        run: |
+          docker run -d \
+            --name ci-tester \
+            --entrypoint /usr/bin/sleep \
+            -v "${{ github.workspace }}:/workspace" \
+            git-pluck-ci:latest \
+            infinity
+
+      # Each step execs into that same container. `-w` sets the working directory and
+      # CARGO_TARGET_DIR keeps build artifacts out of the mounted source tree.
+      - name: Run tests (debug)
+        run: docker exec -w /workspace -e CARGO_TARGET_DIR=/tmp/target ci-tester cargo test
+
+      - name: Run tests (release)
+        run: docker exec -w /workspace -e CARGO_TARGET_DIR=/tmp/target ci-tester cargo test --release
