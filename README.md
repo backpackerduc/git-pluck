@@ -1,5 +1,7 @@
 # `git-pluck`
 
+[![CI](https://github.com/backpackerduc/git-pluck/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/backpackerduc/git-pluck/actions/workflows/ci.yml)
+
 Create a separate Git branch containing a mapped subset of a repository's files, with full commit history preserved.
 
 `git-pluck` takes a configuration file that defines source-to-destination path mappings, then rewrites the repository's commit history so that each "pluck" commit contains only the files selected by those mappings, placed at their mapped destinations.
