@@ -73,6 +73,11 @@ jobs:
 
       # Each leg runs in its own container. The registry is mounted from the shared cache,
       # so isolated containers still share downloaded crates instead of each re-downloading.
+      #
+      # Ownership: the image has no USER, so this runs as root (uid 0). libgit2 refuses to
+      # open a repo whose owner uid != the process euid, and the bind-mounted /workspace is
+      # owned by the host runner user (uid 1001 on GHA), not root. chowning it to root first
+      # makes the uids match so tests can open /workspace as a repository.
       - name: Run tests
         run: |
           mkdir -p "${{ runner.temp }}/cargo-registry"
@@ -86,4 +91,4 @@ jobs:
             -e CARGO_TARGET_DIR=/tmp/target \
             -w /workspace \
             ${{ env.IMAGE_NAME }}:latest \
-            -c "cargo test $release_flag"
+            -c "chown -R 0:0 /workspace && cargo test $release_flag"
