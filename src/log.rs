@@ -165,13 +165,9 @@ mod tests {
         let tree_builder = repo.treebuilder(None).unwrap();
         let tree_oid = tree_builder.write().unwrap();
         let tree = repo.find_tree(tree_oid).unwrap();
-        let parents: Vec<git2::Commit> = parent_oids
-            .iter()
-            .map(|oid| repo.find_commit(*oid).unwrap())
-            .collect();
+        let parents: Vec<git2::Commit> = parent_oids.iter().map(|oid| repo.find_commit(*oid).unwrap()).collect();
         let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
-        let oid = repo.commit(None, &sig, &sig, msg, &tree, &parent_refs).unwrap();
-        oid
+        repo.commit(None, &sig, &sig, msg, &tree, &parent_refs).unwrap()
     }
 
     fn set_log_ref(repo: &git2::Repository, pluckname: &str, oid: git2::Oid) {
