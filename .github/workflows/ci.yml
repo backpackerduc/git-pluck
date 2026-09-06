@@ -1,9 +1,18 @@
 name: CI
 
-# Runs on every PR targeting master (created, updated, or synced).
+# Triggers:
+#   - push to master        -> keeps the README badge current for "latest master build"
+#   - PR targeting master   -> check proposed changes before they land
+#   - nightly schedule      -> catch bit-rot on master even when no new PRs arrive
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
+  schedule:
+    # GitHub Actions cron is evaluated in UTC, not local time.
+    # 23:00 UTC == midnight CET (winter). During summer (CEST, UTC+2) this fires at 01:00 local.
+    - cron: '0 23 * * *'
 
 # Minimal token scope: we only read the repo (checkout + cache reads).
 permissions:
