@@ -22,8 +22,6 @@ permissions:
 #   Add a new check by extending the matrix below (or adding a job); it reuses all the caches.
 # ---------------------------------------------------------------------------
 jobs:
-  # Make sure the devcontainer image is on GHCR under its content-hash tag — building only when
-  # that tag doesn't exist yet (a warm run skips straight past).
   build-image:
     name: Build devcontainer image
     runs-on: ubuntu-latest
@@ -89,8 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         profile: [debug, release]
-        # Grow by adding axes, e.g. `rust-version: [1.93, 1.94, 1.95]`.
-        # Caveat: the devcontainer image bakes a single toolchain (1.95.0), so a version
+        # Note: the devcontainer image bakes a single toolchain (1.95.0), so a version
         # axis needs either a per-version image build ARG or a rustup install inside the job.
     steps:
       - name: Checkout
