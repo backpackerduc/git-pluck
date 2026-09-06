@@ -1,38 +1,22 @@
 name: CI
 
-# Triggers:
-#   - push to master        -> keeps the README badge current for "latest master build"
-#   - PR targeting master   -> check proposed changes before they land
-#   - nightly schedule      -> catch bit-rot on master even when no new PRs arrive
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
   schedule:
-    # GitHub Actions cron is evaluated in UTC.
-    # 23:00 UTC == midnight CET (winter). During summer (CEST, UTC+2) this fires at 01:00 CET.
+    # 23:00 UTC == midnight CET (winter). During summer (CEST, UTC+2) 01:00 CET.
     - cron: '0 23 * * *'
 
-# Baseline token scope. Jobs that talk to GHCR override this with the package scopes they need.
 permissions:
   contents: read
 
 # ---------------------------------------------------------------------------
-# Image identity = a hash of the build inputs (.devcontainer/**), NOT the branch.
-#   The image is a build ENVIRONMENT (OS + Rust + libs); code is mounted in at runtime,
-#   so it's identical across every branch/PR unless someone edits .devcontainer/. Same content
-#   -> same tag -> one shared image on GHCR reused by all of them. Computed automatically in each
-#   job (in a step AFTER checkout, because hashFiles needs the files present) — no manual tagging.
-#   WARNING: it hashes OUR files only, not the floating `ubuntu:24.04` base or apt/rustup downloads;
-#   TODO: pin the base by digest in the Dockerfile if byte-for-byte determinism is required.
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Design: "ready to grow"
-#   - Each test runs in its OWN container (isolated target dir -> parallelizable).
-#   - The expensive bits are cached and SHARED across all containers/runs:
-#       * the Docker image  -> GHCR, tagged by content hash (durable; no 7-day eviction)
+# Design:
+#   - Each test runs in its OWN container.
+#   - Caching and sharing across all containers/runs:
+#       * the Docker image  -> GHCR, tagged by content hash
 #       * downloaded crates -> ONE actions/cache on cargo's registry (Cargo.lock key)
 #       * compiled output   -> ONE actions/cache on cargo's target dir (per profile)
 #   Add a new check by extending the matrix below (or adding a job); it reuses all the caches.
@@ -45,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # needed to push; fork PRs get a read-only token and skip the push
+      packages: write   # needed to push
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,6 +38,8 @@ jobs:
         id: img
         run: |
           # GHCR requires a lowercase repository; use tr for now.
+          # WARNING: it hashes files only, not the floating `ubuntu:24.04` of the DOCKERFILE base or apt/rustup downloads;
+          # TODO: pin the base by digest in the Dockerfile if byte-for-byte determinism is required.
           repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           tag="${{ hashFiles('.devcontainer/**') }}"
           echo "ref=ghcr.io/${repo}:${tag}" >> "$GITHUB_OUTPUT"
@@ -79,7 +65,7 @@ jobs:
 
       # push=false on fork PRs (their read-only token can't write the base repo's packages);
       # the build still runs locally to validate the Dockerfile, it just doesn't share a new image.
-      # Same-repo branches/PRs and pushes push.
+      # Same-repo branches/PRs and pushes still push.
       - name: Build and push devcontainer image
         if: steps.exists.outputs.found == 'false'
         uses: docker/build-push-action@v6
