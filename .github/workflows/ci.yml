@@ -1,63 +1,80 @@
 name: CI
 
-# Run on every pull request that targets master (created, updated, or synced).
+# Runs on every PR targeting master (created, updated, or synced).
 on:
   pull_request:
     branches: [master]
 
-# Minimal token scope: we only need to read the repo (for checkout + cache reads).
+# Minimal token scope: we only read the repo (checkout + cache reads).
 permissions:
   contents: read
 
+# Shared across all jobs so adding a new job/leg stays consistent.
+env:
+  IMAGE_NAME: git-pluck-ci
+
+# ---------------------------------------------------------------------------
+# Design: "ready to grow"
+#   - Each test runs in its OWN container (isolated target dir -> parallelizable).
+#   - The expensive bits are cached and SHARED across all containers/runs:
+#       * the Docker image  -> GHA layer cache (built once, reused everywhere)
+#       * downloaded crates -> ONE actions/cache on cargo's registry (Cargo.lock key)
+#   Add a new check by extending the matrix below (or adding a job); it reuses both caches.
+# ---------------------------------------------------------------------------
 jobs:
   test:
-    name: Build & test in devcontainer image
+    name: Test (${{ matrix.profile }})
     runs-on: ubuntu-latest
+    strategy:
+      # Let every leg finish even if one fails, so you see all results at once.
+      fail-fast: false
+      matrix:
+        profile: [debug, release]
+        # Grow by adding axes, e.g. `rust-version: [1.93, 1.94, 1.95]`.
+        # Caveat: the devcontainer image bakes a single toolchain (1.95.0), so a version
+        # axis needs either a per-version image build ARG or a rustup install inside the job.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # buildx is required for the GitHub Actions layer cache below.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build the exact image the devcontainer uses.
-      #   context = .devcontainer  -> so `COPY entrypoint.sh` resolves (it lives there,
-      #                               not at the repo root).
-      #   load: true               -> load into the local docker daemon so `docker run`
-      #                               can use it (buildx otherwise keeps it in containerd).
-      #   cache-from/to: type=gha  -> reuse image layers across runs, so apt/rustup are
-      #                               not re-downloaded on every PR.
+      # Build the exact devcontainer image. Layers are cached in GHA, so this is fast on
+      # every run after the first and shared across the parallel jobs.
       - name: Build devcontainer image
         uses: docker/build-push-action@v6
         with:
           context: .devcontainer
           file: .devcontainer/Dockerfile
-          tags: git-pluck-ci:latest
+          tags: ${{ env.IMAGE_NAME }}:latest
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Start ONE container that stays alive so both test steps below can `docker exec`
-      # into the SAME running container. That way cargo downloads the crates only once and
-      # we don't pay a second container start - while still keeping two separate checkmarks.
-      #   --entrypoint /usr/bin/sleep -> skip the dev-only ownership entrypoint (it chowns to a
-      #                                  `devuser` that doesn't exist in this image). The main
-      #                                  process only needs to keep the container alive, so it just sleeps.
-      #   -v ...:/workspace           -> mount the checkout where the image expects the code.
-      - name: Start test container
+      # ONE shared crate cache. Keyed on Cargo.lock so it is reused by every job and run;
+      # restore-keys falls back to the most recent cache when dependencies change.
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cargo-registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      # Each leg runs in its own container. The registry is mounted from the shared cache,
+      # so isolated containers still share downloaded crates instead of each re-downloading.
+      - name: Run tests
         run: |
-          docker run -d \
-            --name ci-tester \
-            --entrypoint /usr/bin/sleep \
+          mkdir -p "${{ runner.temp }}/cargo-registry"
+          release_flag=""
+          if [ "${{ matrix.profile }}" = "release" ]; then release_flag="--release"; fi
+
+          docker run --rm \
+            --entrypoint /bin/bash \
             -v "${{ github.workspace }}:/workspace" \
-            git-pluck-ci:latest \
-            infinity
-
-      # Each step execs into that same container. `-w` sets the working directory and
-      # CARGO_TARGET_DIR keeps build artifacts out of the mounted source tree.
-      - name: Run tests (debug)
-        run: docker exec -w /workspace -e CARGO_TARGET_DIR=/tmp/target ci-tester cargo test
-
-      - name: Run tests (release)
-        run: docker exec -w /workspace -e CARGO_TARGET_DIR=/tmp/target ci-tester cargo test --release
+            -v "${{ runner.temp }}/cargo-registry:/usr/local/cargo/registry" \
+            -e CARGO_TARGET_DIR=/tmp/target \
+            -w /workspace \
+            ${{ env.IMAGE_NAME }}:latest \
+            -c "cargo test $release_flag"
