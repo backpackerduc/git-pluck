@@ -22,10 +22,6 @@
     # from the previous pluck parent. Useful for creating marker commits.
     # allowUnchangedTree = true
 
-    # When enabled, adds mirror mappings for all source and destination paths.
-    # If you map "src" -> "lib", this also adds "lib" -> "lib" and "src" -> "src".
-    # mirrorMap = true
-
     # The reference to start plucking from (default: HEAD)
     # startRef = HEAD
 
