@@ -1,6 +1,6 @@
 use test_utils::TestRepo;
 
-const TEST_CONFIG: &str = include_str!("testconfig");
+const TEST_CONFIG: &str = include_str!("testconfig.pluck");
 
 struct HistoryShas {
     merge_branch5_sha: String,
