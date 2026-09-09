@@ -179,7 +179,6 @@ Behavior settings go under the `[pluck]` section:
 | `debug` | int | `0` | Debug output level (0=none, 1=single-line, 2=multiline) |
 | `force` | bool | `false` | Bypass sanity checks and validation errors |
 | `allowUnchangedTree` | bool | `false` | Force new pluck commit even when tree is unchanged |
-| `mirrorMap` | bool | `false` | Replace all mappings with mirror (to = (Mirror)), strip copies |
 | `startRef` | string | `HEAD` | Source history reference to start plucking from |
 | `allowMissingPath` | bool | `false` | Don't error when a mapped source path doesn't exist |
 | `allowNestedMap` | bool | `false` | Allow nested mappings |
@@ -431,7 +430,7 @@ git-pluck [OPTIONS] [PLUCKNAME]
 | Flag | Config Key | Description |
 |------|-----------|-------------|
 | `--add-map=SRC:DST` | - | Add mapping to config file |
-| `--mirror-map` | `mirrorMap` | Replace all mappings with mirror (to = (Mirror)), strip copies |
+| `--mirror-map` | - | Replace all mappings with mirror (to = (Mirror)), strip copies |
 | `--show-src-paths` | - | List all src-paths |
 | `--show-dst-paths` | - | List all dst-paths |
 | `--check-config` | - | Validate the map |

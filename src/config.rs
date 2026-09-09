@@ -171,7 +171,6 @@ fn set_pluck_config(key: &str, value: &str, config: &mut PluckConfig) -> anyhow:
         "debug" => config.debug = value.parse().unwrap_or(0),
         "force" => config.force = parse_bool(value)?,
         "allowUnchangedTree" => config.allow_unchanged_tree = parse_bool(value)?,
-        "mirrorMap" => config.mirror_map = parse_bool(value)?,
         "startRef" => {
             ensure_not_empty("startRef", value)?;
             config.start_ref = value.to_string();
@@ -271,7 +270,6 @@ mod tests {
         assert_eq!(config.debug, 0);
         assert!(!config.force);
         assert!(!config.allow_unchanged_tree);
-        assert!(!config.mirror_map);
         assert_eq!(config.start_ref, "HEAD");
         assert!(!config.allow_missing_path);
         assert!(config.rep_author_regex.is_none());
