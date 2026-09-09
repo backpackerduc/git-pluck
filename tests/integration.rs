@@ -316,15 +316,11 @@ fn test_map_mirror_map() {
     let repo = TestRepo::new();
     repo.commit_file("src.txt", "hello", "initial");
 
-    let config_content = "[forward.from \"src.txt\"]\n    to = dest.txt\n\n[pluck]\n    mirrorMap = true\n";
+    let config_content = "[forward.from \"src.txt\"]\n    to = dest.txt\n";
     let config_path = repo.create_config("mirror_map", config_content);
 
-    // mirrorMap replaces all mappings with map=true (mirror), strips copies
-    let out = repo.run_pluck_ok(&["-c", config_path.to_str().unwrap(), "--show-src-paths"]);
-    assert_eq!(out.stdout_lines(), vec!["src.txt"]);
-
-    let out = repo.run_pluck_ok(&["-c", config_path.to_str().unwrap(), "--show-dst-paths"]);
-    // mirror map: destination = source
+    // --mirror-map replaces all mappings with mirror: destination = source
+    let out = repo.run_pluck_ok(&["-c", config_path.to_str().unwrap(), "--mirror-map", "--show-dst-paths"]);
     assert_eq!(out.stdout_lines(), vec!["src.txt"]);
 }
 
@@ -930,11 +926,7 @@ fn test_error_ignorant_pluck_with_recursive() {
         "--log-branch",
     ]);
     assert_ne!(out.code, 0);
-    assert!(
-        out.stderr.contains("cannot be combined") || out.stderr.contains("error"),
-        "stderr: {}",
-        out.stderr
-    );
+    assert!(out.stderr.contains("cannot be combined") || out.stderr.contains("error"), "stderr: {}", out.stderr);
 }
 
 #[test]
