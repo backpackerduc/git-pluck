@@ -181,20 +181,8 @@ fn create_pluck_commit(
     let (author_name, author_email) = resolve_author(config, &source_commit);
     let (committer_name, committer_email) = resolve_committer(config, &source_commit);
 
-    let author_sig = git2::Signature::new(
-        &author_name,
-        &author_email,
-        &git2::Time::new(source_commit.author().when().seconds(), source_commit.author().when().offset_minutes() * 60),
-    )?;
-
-    let committer_sig = git2::Signature::new(
-        &committer_name,
-        &committer_email,
-        &git2::Time::new(
-            source_commit.committer().when().seconds(),
-            source_commit.committer().when().offset_minutes() * 60,
-        ),
-    )?;
+    let author_sig = git2::Signature::new(&author_name, &author_email, &source_commit.author().when())?;
+    let committer_sig = git2::Signature::new(&committer_name, &committer_email, &source_commit.committer().when())?;
 
     let message = resolve_message(config, source_commit.message().unwrap_or(""))?;
     let message = if config.log_message { add_source_sha(&message, source_sha)? } else { message };

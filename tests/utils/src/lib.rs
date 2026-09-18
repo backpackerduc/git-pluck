@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -34,8 +35,17 @@ impl TestRepo {
 
     /// Run a git command in the repo directory.
     pub fn run_cmd(&self, cmd: &str, args: &[&str]) -> String {
-        let output =
-            Command::new("git").arg(cmd).args(args).current_dir(&self.path).output().expect("Failed to run git");
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let date = format!("@{} +0200", now);
+
+        let output = Command::new("git")
+            .arg(cmd)
+            .args(args)
+            .current_dir(&self.path)
+            .env("GIT_AUTHOR_DATE", &date)
+            .env("GIT_COMMITTER_DATE", &date)
+            .output()
+            .expect("Failed to run git");
         if !output.status.success() {
             panic!("git {} {:?} failed: {}", cmd, args, String::from_utf8_lossy(&output.stderr));
         }
