@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Rust toolchain
 # ---------------------------------------------------------------------------
 ENV CARGO_HOME=/usr/local/cargo \
+    CARGO_TARGET_DIR=/workspace/target_container \
     RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
 
@@ -34,13 +35,11 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
     rustup toolchain install 1.95.0-x86_64-unknown-linux-gnu --profile minimal && \
     rustup default 1.95.0-x86_64-unknown-linux-gnu && \
     rustup component add --toolchain 1.95.0-x86_64-unknown-linux-gnu \
-        clippy \
-        rust-src \
-        rustfmt && \
+    clippy rust-src rustfmt && \
     rustc --version && \
     cargo --version && \
     cargo clippy --version
-    
+
 # ---------------------------------------------------------------------------
 # Sudo access and ownership for ubuntu user
 # Ubuntu 24.04 images commonly already include an ubuntu user, so this keeps
