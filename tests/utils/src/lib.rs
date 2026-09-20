@@ -36,6 +36,9 @@ impl TestRepo {
     /// Run a git command in the repo directory.
     pub fn run_cmd(&self, cmd: &str, args: &[&str]) -> String {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        // Make sure that the tests run in a timezone other than UTC,
+        // so git commit dates have an offset from UTC other than zero.
+        // It must be ensured that the tests correctly check the offset when testing the preservation of commit dates.
         let date = format!("@{} +0200", now);
 
         let output = Command::new("git")
