@@ -18,8 +18,10 @@ pub fn get_last_plucked_source_sha(
 
 /// Get the last logged source commit sha from the log branch's parents.
 ///
-/// If the log commit has a third parent (`^3`), the second parent (`^2`) is the source.
-/// Otherwise, the first parent (`^1`) is the source.
+/// The log branch format is a 3-parent merge: parent[0]=prev_log, parent[1]=source, parent[2]=pluck_tip.
+/// Returns `Ok(None)` only when the log branch ref does not exist (first run).
+/// Returns `Err` if the ref exists but the tip commit does not have exactly 3 parents
+/// (corrupted or foreign log branch).
 fn get_from_log_branch(repo: &git2::Repository, pluckname: &str) -> anyhow::Result<Option<String>> {
     let refname = format!("refs/heads/pluck/log/{pluckname}");
     let Ok(oid) = repo.refname_to_id(&refname) else {
@@ -28,17 +30,16 @@ fn get_from_log_branch(repo: &git2::Repository, pluckname: &str) -> anyhow::Resu
 
     let commit = repo.find_commit(oid).context("Failed to find log commit")?;
 
-    let parent_count = commit.parent_count();
-
-    if parent_count >= 3 {
-        let source_parent = commit.parent_id(1).context("Failed to get source parent from log commit")?;
-        Ok(Some(source_parent.to_string()))
-    } else if parent_count >= 1 {
-        let source_parent = commit.parent_id(0).context("Failed to get source parent from log commit")?;
-        Ok(Some(source_parent.to_string()))
-    } else {
-        Ok(None)
+    if commit.parent_count() != 3 {
+        anyhow::bail!(
+            "Log commit {} has {} parents, expected 3. The log branch may be corrupted or was created by a different tool.",
+            commit.id(),
+            commit.parent_count()
+        );
     }
+
+    let source_parent = commit.parent_id(1).context("Failed to get source parent from log commit")?;
+    Ok(Some(source_parent.to_string()))
 }
 
 /// Get the last plucked source from the pluck branch tip's message's `Plucked from: <SHA>` trailer.
@@ -148,6 +149,32 @@ mod tests {
     use super::*;
     use crate::cache::PluckCache;
 
+    fn make_test_repo() -> (git2::Repository, std::path::PathBuf) {
+        let unique = std::process::id();
+        let dir = std::env::temp_dir().join(format!(
+            "git_pluck_log_test_{unique}_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let repo = git2::Repository::init(&dir).unwrap();
+        (repo, dir)
+    }
+
+    fn commit_with_parents(repo: &git2::Repository, msg: &str, parent_oids: &[git2::Oid]) -> git2::Oid {
+        let sig = git2::Signature::now("Test", "test@test.com").unwrap();
+        let tree_builder = repo.treebuilder(None).unwrap();
+        let tree_oid = tree_builder.write().unwrap();
+        let tree = repo.find_tree(tree_oid).unwrap();
+        let parents: Vec<git2::Commit> = parent_oids.iter().map(|oid| repo.find_commit(*oid).unwrap()).collect();
+        let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+        repo.commit(None, &sig, &sig, msg, &tree, &parent_refs).unwrap()
+    }
+
+    fn set_log_ref(repo: &git2::Repository, pluckname: &str, oid: git2::Oid) {
+        let refname = format!("refs/heads/pluck/log/{pluckname}");
+        repo.reference(&refname, oid, true, "test log ref").unwrap();
+    }
+
     // -- build_log_branch_message --
 
     #[test]
@@ -198,5 +225,70 @@ mod tests {
     #[test]
     fn test_get_last_plucked_source_delegates_log_message() {
         // Same as above - requires a git repo
+    }
+
+    // -- get_from_log_branch parent count validation --
+
+    #[test]
+    fn test_get_from_log_branch_no_ref_returns_none() {
+        let (repo, dir) = make_test_repo();
+        let result = get_from_log_branch(&repo, "nonexistent");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_from_log_branch_zero_parents_errors() {
+        let (repo, dir) = make_test_repo();
+        let root = commit_with_parents(&repo, "root", &[]);
+        set_log_ref(&repo, "testname", root);
+        let result = get_from_log_branch(&repo, "testname");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("0 parents"), "Error should mention parent count: {err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_from_log_branch_one_parent_errors() {
+        let (repo, dir) = make_test_repo();
+        let root = commit_with_parents(&repo, "root", &[]);
+        let child = commit_with_parents(&repo, "child", &[root]);
+        set_log_ref(&repo, "testname", child);
+        let result = get_from_log_branch(&repo, "testname");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("1 parents"), "Error should mention parent count: {err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_from_log_branch_two_parents_errors() {
+        let (repo, dir) = make_test_repo();
+        let root = commit_with_parents(&repo, "root", &[]);
+        let c1 = commit_with_parents(&repo, "c1", &[root]);
+        let c2 = commit_with_parents(&repo, "c2", &[root]);
+        let merge = commit_with_parents(&repo, "merge", &[c1, c2]);
+        set_log_ref(&repo, "testname", merge);
+        let result = get_from_log_branch(&repo, "testname");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("2 parents"), "Error should mention parent count: {err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_get_from_log_branch_three_parents_returns_source() {
+        let (repo, dir) = make_test_repo();
+        let root = commit_with_parents(&repo, "root", &[]);
+        let prev_log = commit_with_parents(&repo, "prev_log", &[root]);
+        let source = commit_with_parents(&repo, "source", &[root]);
+        let pluck_tip = commit_with_parents(&repo, "pluck_tip", &[root]);
+        let log_commit = commit_with_parents(&repo, "log", &[prev_log, source, pluck_tip]);
+        set_log_ref(&repo, "testname", log_commit);
+        let result = get_from_log_branch(&repo, "testname").unwrap();
+        assert_eq!(result, Some(source.to_string()));
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
