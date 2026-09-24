@@ -13,18 +13,17 @@
     "git-pluck-dev"
   ],
   "remoteUser": "ubuntu",
-  "onCreateCommand": [
-    "chown",
-    "-R",
-    "ubuntu:ubuntu",
-    "/workspace"
-  ],
+  // "onCreateCommand": [
+  //   "chown",
+  //   "-R",
+  //   "ubuntu:ubuntu",
+  //   "/workspace"
+  // ],
   // Keep terminal colors and paging in non-interactive tool output
   "containerEnv": {
     "CLICOLOR": "1",
     "FORCE_COLOR": "1",
-    "PAGER": "cat",
-    "CARGO_TARGET_DIR": "/workspace/target"
+    "PAGER": "cat"
   },
   // Recommended VS Code extensions for Rust development
   "customizations": {
@@ -34,7 +33,7 @@
         "tamasfe.even-better-toml"
       ],
       "settings": {
-        "rust-analyzer.cargo.targetDir": "${workspaceFolder}/target",
+        "rust-analyzer.cargo.targetDir": "${workspaceFolder}/target_container",
         "rust-analyzer.check.command": "clippy"
       }
     }
