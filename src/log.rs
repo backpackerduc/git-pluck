@@ -51,17 +51,16 @@ fn get_from_log_message(repo: &git2::Repository, pluckname: &str) -> anyhow::Res
     let commit = repo.find_commit(oid).context("Failed to find pluck commit")?;
 
     let message = commit.message().unwrap_or("");
-    for line in message.lines().rev() {
-        let line = line.trim();
-        if let Some(sha) = line.strip_prefix("Plucked from: ") {
-            let sha = sha.trim();
-            if sha.len() == 40 && sha.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Ok(Some(sha.to_string()));
-            }
-        }
+
+    if let Some(sha) = crate::cache::extract_pluck_source_sha(message) {
+        return Ok(Some(sha));
     }
 
-    Ok(None)
+    anyhow::bail!(
+        "Pluck branch tip {} has no valid 'Plucked from: <SHA>' trailer — \
+         can't determine where the last pluck left off",
+        commit.id()
+    );
 }
 
 /// Create a log commit.
