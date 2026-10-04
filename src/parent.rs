@@ -55,31 +55,31 @@ pub fn build_revision_list(
 }
 
 fn build_single_commit_list(config: &PluckConfig) -> anyhow::Result<Vec<(String, Vec<String>)>> {
-    let output = Command::new("git")
+    let start_ref_resolution = Command::new("git")
         .args(["rev-parse", "--verify", &config.start_ref])
         .output()
         .context("Failed to run git rev-parse")?;
 
-    if !output.status.success() {
+    if !start_ref_resolution.status.success() {
         anyhow::bail!("Failed to resolve start reference: {}", config.start_ref);
     }
 
-    let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let start_ref_sha = String::from_utf8_lossy(&start_ref_resolution.stdout).trim().to_string();
 
     // Get parents
-    let log_output = Command::new("git")
-        .args(["log", "-1", "--format=%P", &sha])
+    let start_ref_parent_lookup = Command::new("git")
+        .args(["log", "-1", "--format=%P", &start_ref_sha])
         .output()
         .context("Failed to get commit parents")?;
 
-    let parents_str = String::from_utf8_lossy(&log_output.stdout).trim().to_string();
+    let parents_str = String::from_utf8_lossy(&start_ref_parent_lookup.stdout).trim().to_string();
     let parents: Vec<String> = if parents_str.is_empty() {
         Vec::new()
     } else {
         parents_str.split_whitespace().map(std::string::ToString::to_string).collect()
     };
 
-    Ok(vec![(sha, parents)])
+    Ok(vec![(start_ref_sha, parents)])
 }
 
 fn build_recursive_list(
