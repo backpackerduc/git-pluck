@@ -138,7 +138,7 @@ fn is_sha_pair(line: &str) -> bool {
 }
 
 /// Extract the source SHA from a pluck commit message.
-fn extract_pluck_source_sha(message: &str) -> Option<String> {
+pub fn extract_pluck_source_sha(message: &str) -> Option<String> {
     for line in message.lines().rev() {
         let line = line.trim();
         if let Some(sha) = line.strip_prefix("Plucked from: ") {
