@@ -1187,6 +1187,28 @@ fn test_log_message_mode() {
     assert!(msg.contains(&format!("Plucked from: {}", source_sha)));
 }
 
+#[test]
+fn test_log_message_corrupt_tip_errors() {
+    let repo = TestRepo::new();
+    repo.commit_file("src.txt", "hello", "initial");
+    repo.commit_file("src.txt", "world", "update");
+
+    let config_path = repo.create_config("corrupt", "[forward.from \"src.txt\"]\n    to = (Mirror)\n");
+
+    // Create a pluck branch pointing to a commit with no "Plucked from:" trailer
+    let sha = repo.run_cmd("rev-parse", &["HEAD"]);
+    repo.run_cmd("update-ref", &["refs/heads/pluck/corrupt", &sha]);
+
+    // Running pluck should fail because the tip has no valid trailer
+    let out = repo.run_pluck(&["-c", config_path.to_str().unwrap(), "--log-message", "--no-log-branch"]);
+    assert_ne!(out.code, 0, "Should fail when pluck branch tip has no valid trailer");
+    assert!(
+        out.stderr.contains("no valid 'Plucked from: <SHA>' trailer"),
+        "Error message should mention missing trailer, got: {}",
+        out.stderr
+    );
+}
+
 // ============================================================================
 // Update ref tests
 // ============================================================================
