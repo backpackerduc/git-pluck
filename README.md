@@ -2,16 +2,17 @@
 
 [![CI_master](https://github.com/backpackerduc/git-pluck/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/backpackerduc/git-pluck/actions/workflows/ci.yml)
 
-Create a separate Git branch containing a mapped subset of a repository's files, with full commit history preserved.
+Create a separate Git branch containing a mapped subset of a repository's files,
+preserving full commit history relevant only to that subset.
 
 `git-pluck` takes a configuration file that defines source-to-destination path mappings, then rewrites the repository's commit history so that each "pluck" commit contains only the files selected by those mappings, placed at their mapped destinations.
 Original blob objects are reused (no content duplication), commit metadata is preserved by default, and parent ancestry is reconstructed so the pluck has a contiguous, valid history.
 `git-pluck` has similarities with https://github.com/xoofx/git-rocket-filter and https://github.com/jasonwhite/git-subset yet goes a step further.
 
-## Example Use-Cases for `git-pluck`
+## Why `git-pluck`
 
-- **Component extraction/exclusion**: Pluck just the desired component(s) into a branch deployable to a different site
-- **Monorepo to multi-repo**: Extract a subproject from a monorepo into its own branch with full history
+- **Component extraction/exclusion**: Pluck just the desired component(s) into a standalone branch (share zero commits with the source branch) deployable to a different site
+- **Monorepo to multi-repo**: Extract a subproject from a monorepo into its own branch with full history relevant only to the extracted content
 - **Vendor inclusion**: Include third-party code as a subtree with preserved history
 - **Privacy**: Replace author/committer info for commits from external contributors before sharing
 - **Submodule replacement**: Replace git-submodule workflows with a cleaner or just different branch-based approach
@@ -60,9 +61,6 @@ After installation, ensure `git-pluck` is on your `PATH`, or place it in a direc
 
 [forward.from "README.md"]
     to = (Mirror)
-
-[forward.from "tests"]
-    to = (Remove)
 ```
 
 2. **Run git-pluck**:
@@ -71,7 +69,9 @@ After installation, ensure `git-pluck` is on your `PATH`, or place it in a direc
 git-pluck -c pluckname.pluck
 ```
 
-3. **Result**: A new branch `refs/heads/pluck/pluckname` contains only `src/` and `README.md` (excluding `tests/`) with full commit history.
+3. **Result**: A new branch `refs/heads/pluck/pluckname` contains only `src/` and `README.md` (excluding everything else).
+   Full commit history is preserved w.r.t. to `src/` and `README.md`.
+   Commits that do not differ from their parents in selected files are ignored.
 
 ## Configuration Files
 
