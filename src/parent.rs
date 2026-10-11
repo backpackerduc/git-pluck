@@ -55,24 +55,24 @@ pub fn build_revision_list(
 }
 
 fn build_single_commit_list(config: &PluckConfig) -> anyhow::Result<Vec<(String, Vec<String>)>> {
-    let start_ref_resolution = Command::new("git")
+    let rev_parse_output = Command::new("git")
         .args(["rev-parse", "--verify", &config.start_ref])
         .output()
         .context("Failed to run git rev-parse")?;
 
-    if !start_ref_resolution.status.success() {
+    if !rev_parse_output.status.success() {
         anyhow::bail!("Failed to resolve start reference: {}", config.start_ref);
     }
 
-    let start_ref_sha = String::from_utf8_lossy(&start_ref_resolution.stdout).trim().to_string();
+    let start_ref_sha = String::from_utf8_lossy(&rev_parse_output.stdout).trim().to_string();
 
     // Get parents
-    let start_ref_parent_lookup = Command::new("git")
+    let parent_lookup_output = Command::new("git")
         .args(["log", "-1", "--format=%P", &start_ref_sha])
         .output()
         .context("Failed to get commit parents")?;
 
-    let parents_str = String::from_utf8_lossy(&start_ref_parent_lookup.stdout).trim().to_string();
+    let parents_str = String::from_utf8_lossy(&parent_lookup_output.stdout).trim().to_string();
     let parents: Vec<String> = if parents_str.is_empty() {
         Vec::new()
     } else {
