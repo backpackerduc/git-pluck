@@ -73,6 +73,42 @@ fn test_log_branch_preload_multi_run_parent_chain() {
 }
 
 #[test]
+fn test_log_branch_preload_ignores_source_commit_mappings() {
+    // A source commit whose message contains a line that looks like a valid
+    // source→pluck mapping must NOT be loaded into the cache. Only log-branch
+    // commits (messages starting with "[SOURCE:PLUCK]") are read, so content in
+    // reachable source commits is ignored.
+    let fake_src = "1".repeat(40);
+    let fake_pluck = "2".repeat(40);
+
+    let repo = TestRepo::new();
+    repo.commit_file("src.txt", "v1", "commit 1");
+    // Mid-history source commit carrying a bogus mapping line in its message.
+    repo.commit_file("src.txt", "v2", &format!("commit 2\n\n{fake_src}:{fake_pluck}"));
+    let sha3 = repo.commit_file("src.txt", "v3", "commit 3");
+
+    let config_path = repo.create_config("preload_ignore_src", "[forward.from \"src.txt\"]\n    to = (Mirror)\n");
+    let cfg = config_path.to_str().unwrap();
+
+    repo.run_pluck_ok(&["-c", cfg, "--recursive", "--log-branch"]);
+
+    // The bogus mapping from the source commit must not have been loaded.
+    // Looking it up should fail ("No pluck found"), proving it was ignored.
+    let out = repo.run_pluck(&["-c", cfg, "--log-branch", "--find-pluck-sha", &fake_src]);
+    assert_ne!(
+        out.code,
+        0,
+        "Bogus source→pluck mapping embedded in a source commit must not be loaded into the cache (stdout: {})",
+        out.stdout.trim()
+    );
+
+    // Sanity check: real log-branch mappings are still loaded, so the test is
+    // not passing vacuously because preload is broken.
+    let real = repo.run_pluck_ok(&["-c", cfg, "--log-branch", "--find-pluck-sha", &sha3]);
+    assert_eq!(real.stdout.trim().len(), 40, "Real log-branch mapping should still be loaded");
+}
+
+#[test]
 fn test_log_branch_preload_many_runs() {
     let repo = TestRepo::new();
     for i in 1..=6 {
