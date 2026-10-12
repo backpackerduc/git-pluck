@@ -537,7 +537,6 @@ Quality of life:
 
 Code optimization and robustness:
 - Add integration test for `--auto-reverse-map`.
-- check if `tree::is_overridden` can be removed.
 - tree.rs: `if let Some(first_line) = stdout.lines().next()` unnecessary
 - `log::get_from_log_branch`: either 3 parents or error!!!,  integration test!
 - distinguish `let current_log_oid = repo.refname_to_id(&log_ref).ok();` in `log.rs` between not found and actual error,  integration test!
