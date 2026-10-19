@@ -1,29 +1,24 @@
 # Pre-commit hooks for git-pluck
-#
-# One-time install (uses uv instead of pip):
-#   uv tool install pre-commit
-#   pre-commit install
-#
-# The rustfmt hook runs in CHECK-ONLY mode on the staged .rs files. It never
-# rewrites your files: if formatting is off it prints a diff, tells you the
-# command to fix it, and blocks the commit until you fix + re-stage.
 
 repos:
   - repo: local
     hooks:
+      # One-time install (uses uv instead of pip):
+      #   uv tool install pre-commit
+      #   pre-commit install
       - id: rustfmt-check
         name: rustfmt (check staged .rs files)
         language: system
         # pre-commit appends the staged .rs paths as trailing args; the trailing
         # `_` becomes $0 so that "$@" inside refers to those files.
         entry: |
-          sh -c 'rustfmt --edition 2024 --check "$@"
+          sh -c 'rustfmt --check "$@"
           status=$?
           if [ "$status" -ne 0 ]; then
           echo ""
           echo "rustfmt found formatting issues in the staged files (diff above)."
           echo "To auto-fix them, run:"
-          echo "    rustfmt --edition 2024 $*"
+          echo "    rustfmt $*"
           echo "Then re-stage those files and commit again:"
           echo "    git add $*"
           fi
