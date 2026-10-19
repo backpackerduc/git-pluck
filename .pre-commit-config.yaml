@@ -3,24 +3,11 @@
 repos:
   - repo: local
     hooks:
-      # One-time install (uses uv instead of pip):
+      # One-time install (if not done yet):
       #   uv tool install pre-commit
       #   pre-commit install
       - id: rustfmt-check
-        name: rustfmt (check staged .rs files)
+        name: rustfmt (format check .rs files)
         language: system
-        # pre-commit appends the staged .rs paths as trailing args; the trailing
-        # `_` becomes $0 so that "$@" inside refers to those files.
-        entry: |
-          sh -c 'rustfmt --check "$@"
-          status=$?
-          if [ "$status" -ne 0 ]; then
-          echo ""
-          echo "rustfmt found formatting issues in the staged files (diff above)."
-          echo "To auto-fix them, run:"
-          echo "    rustfmt $*"
-          echo "Then re-stage those files and commit again:"
-          echo "    git add $*"
-          fi
-          exit "$status"' _
+        entry: tools/rustfmt_check.sh
         files: '\.rs$'
