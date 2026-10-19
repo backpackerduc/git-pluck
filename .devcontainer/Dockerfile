@@ -41,9 +41,7 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
     cargo clippy --version
 
 # ---------------------------------------------------------------------------
-# uv — fast Python package/tool manager
-#   Installed system-wide (/usr/local/bin) so both root and the ubuntu user can
-#   use it. Used at container start to install pre-commit (see devcontainer.json).
+# uv - Python package/tool manager
 # ---------------------------------------------------------------------------
 RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh && \
     uv --version
@@ -64,7 +62,7 @@ RUN echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu && \
 WORKDIR /workspace
 
 # ---------------------------------------------------------------------------
-# Entrypoint — best-effort ownership fix for standalone (docker compose) use.
+# Entrypoint - best-effort ownership fix for standalone (docker compose) use.
 #
 # When the container starts as root and /workspace is mounted with files owned
 # by a different UID, chown once so later non-root use works cleanly.

@@ -14,7 +14,7 @@
   ],
   "remoteUser": "ubuntu",
   // On every (re)create: install pre-commit via uv and activate the git hook.
-  // (uv itself is baked into the image — see Dockerfile.)
+  // uv itself is required to be baked into the dockerfile.
   "postCreateCommand": "uv tool install pre-commit && pre-commit install",
   // "onCreateCommand": [
   //   "chown",
