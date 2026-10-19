@@ -4,6 +4,7 @@
 
 # IDE
 .claude/
+.claude-memory/
 .vscode/*.log
 rust_analyzer.log
 *.code-workspace
