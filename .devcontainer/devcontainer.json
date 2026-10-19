@@ -13,6 +13,9 @@
     "git-pluck-dev"
   ],
   "remoteUser": "ubuntu",
+  // On every (re)create: install pre-commit via uv and activate the git hook.
+  // (uv itself is baked into the image — see Dockerfile.)
+  "postCreateCommand": "uv tool install pre-commit && pre-commit install",
   // "onCreateCommand": [
   //   "chown",
   //   "-R",

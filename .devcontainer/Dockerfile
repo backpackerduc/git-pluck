@@ -41,6 +41,14 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
     cargo clippy --version
 
 # ---------------------------------------------------------------------------
+# uv — fast Python package/tool manager
+#   Installed system-wide (/usr/local/bin) so both root and the ubuntu user can
+#   use it. Used at container start to install pre-commit (see devcontainer.json).
+# ---------------------------------------------------------------------------
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh && \
+    uv --version
+
+# ---------------------------------------------------------------------------
 # Sudo access and ownership for ubuntu user
 # Ubuntu 24.04 images commonly already include an ubuntu user, so this keeps
 # that user usable inside devcontainers and compose setups.
