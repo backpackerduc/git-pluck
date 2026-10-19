@@ -13,9 +13,7 @@
     "git-pluck-dev"
   ],
   "remoteUser": "ubuntu",
-  // On every (re)create: install pre-commit via uv and activate the git hook.
-  // uv itself is required to be baked into the dockerfile.
-  "postCreateCommand": "uv tool install pre-commit && pre-commit install",
+  "postCreateCommand": "tools/container_post_create_setup.sh",
   // "onCreateCommand": [
   //   "chown",
   //   "-R",
