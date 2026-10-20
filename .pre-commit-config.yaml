@@ -1,11 +1,9 @@
-# Pre-commit hooks for git-pluck
-
+# Prerequisite, one-time install (if not done yet):
+#   uv tool install pre-commit
+#   pre-commit install
 repos:
   - repo: local
     hooks:
-      # One-time install (if not done yet):
-      #   uv tool install pre-commit
-      #   pre-commit install
       - id: rustfmt-check
         name: rustfmt (format check .rs files)
         language: system

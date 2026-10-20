@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# pre-commit hook: rustfmt --check on staged .rs files; on failure show how to fix.
+# pre-commit hook: rustfmt --check; on failure show how to fix.
 rustfmt --check "$@"
 status=$?
 if [ "$status" -ne 0 ]; then
