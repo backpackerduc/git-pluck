@@ -109,7 +109,7 @@ jobs:
           SHA="$(git rev-parse HEAD)"   # the commit whose code we are checking
 
           # pull_request -> origin/master : files that differ between master and this branch
-          # push         -> event.before  : where master pointed before this push,
+          # push         -> event.before  : previous tip of the pushed branch,
           #                                 so a multi-commit push is fully covered
           if [ "$EVENT_NAME" = "pull_request" ]; then
             git fetch origin master --depth=1
