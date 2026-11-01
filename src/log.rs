@@ -44,24 +44,25 @@ fn get_from_log_branch(repo: &git2::Repository, pluckname: &str) -> anyhow::Resu
 /// Get the last plucked source from the pluck branch tip's message's `Plucked from: <SHA>` trailer.
 fn get_from_log_message(repo: &git2::Repository, pluckname: &str) -> anyhow::Result<Option<String>> {
     let refname = format!("refs/heads/pluck/{pluckname}");
-    let Ok(oid) = repo.refname_to_id(&refname) else {
-        return Ok(None);
+
+    let oid = match repo.refname_to_id(&refname) {
+        Ok(oid) => oid,
+        Err(e) if e.code() == git2::ErrorCode::NotFound => return Ok(None),
+        Err(e) => return Err(anyhow::anyhow!("Failed to resolve ref {}: {}", refname, e)),
     };
 
     let commit = repo.find_commit(oid).context("Failed to find pluck commit")?;
-
     let message = commit.message().unwrap_or("");
-    for line in message.lines().rev() {
-        let line = line.trim();
-        if let Some(sha) = line.strip_prefix("Plucked from: ") {
-            let sha = sha.trim();
-            if sha.len() == 40 && sha.chars().all(|c| c.is_ascii_hexdigit()) {
-                return Ok(Some(sha.to_string()));
-            }
-        }
+
+    if let Some(sha) = crate::cache::extract_pluck_source_sha(message) {
+        return Ok(Some(sha));
     }
 
-    Ok(None)
+    anyhow::bail!(
+        "Pluck branch tip {} has no valid 'Plucked from: <SHA>' trailer — \
+         can't determine where the last pluck left off",
+        commit.id()
+    );
 }
 
 /// Create a log commit.
