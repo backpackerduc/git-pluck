@@ -133,7 +133,7 @@ jobs:
             exit 1
           fi
 
-          changed="$(git diff --name-only "$BASE" HEAD -- '*.rs')"
+          changed="$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- '*.rs')"
           if [ -z "$changed" ]; then
             echo "No .rs files changed vs $BASE; nothing to format-check."
             exit 0
