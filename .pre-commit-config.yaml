@@ -1,0 +1,11 @@
+# Prerequisite, one-time install (if not done yet):
+#   uv tool install pre-commit
+#   pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: rustfmt-check
+        name: rustfmt (format check .rs files)
+        language: system
+        entry: tools/rustfmt_check.sh
+        files: '\.rs$'
