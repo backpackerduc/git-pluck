@@ -72,6 +72,87 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  format-check:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    needs: build-image
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image refs
+        id: img
+        run: |
+          repo="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          tag="${{ hashFiles('.devcontainer/**') }}"
+          echo "ref=ghcr.io/${repo}:${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull devcontainer image
+        run: docker pull "${{ steps.img.outputs.ref }}"
+
+      - name: Check formatting of changed files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -e
+          SHA="$(git rev-parse HEAD)"   # the commit whose code we are checking
+
+          # pull_request -> origin/master : files that differ between master and this branch
+          # push         -> event.before  : previous tip of the pushed branch,
+          #                                 so a multi-commit push is fully covered
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch origin master --depth=1
+            BASE=origin/master
+          elif [ -n "$PUSH_BEFORE" ]; then
+            # A depth-1 checkout only has HEAD; deepen until the pre-push SHA is present.
+            # Bounded: a force-push's 'before' isn't an ancestor of HEAD, so deepening can
+            # never reach it — fall back to HEAD~1 in that (rare) case.
+            BASE="$PUSH_BEFORE"
+            i=0
+            while ! git cat-file -e "$BASE" 2>/dev/null && [ "$i" -lt 10 ]; do
+              git fetch --deepen=20 origin master || break
+              i=$((i + 1))
+            done
+            if ! git cat-file -e "$BASE" 2>/dev/null; then
+              echo "::warning::Could not resolve pre-push SHA $BASE; falling back to HEAD~1."
+              BASE=HEAD~1
+            fi
+          else
+            echo "Orphaned branch or unknown case!"
+            exit 1
+          fi
+
+          changed="$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- '*.rs')"
+          if [ -z "$changed" ]; then
+            echo "No .rs files changed vs $BASE; nothing to format-check."
+            exit 0
+          fi
+          echo "Changed Rust files (commit $SHA):"
+          echo "$changed"
+
+          # rustfmt reads rustfmt.toml from the repo root.
+          if ! docker run --rm \
+              --entrypoint /bin/bash \
+              -v "${{ github.workspace }}:/workspace" \
+              -w /workspace \
+              -e CHANGED_FILES="$changed" \
+              ${{ steps.img.outputs.ref }} \
+              -c 'set -e; printf "%s\n" "$CHANGED_FILES" | xargs rustfmt --check'; then
+            echo "::error::Formatting check FAILED for commit $SHA (base: $BASE)."
+            exit 1
+          fi
+
   test:
     name: Test (${{ matrix.profile }})
     runs-on: ubuntu-latest
