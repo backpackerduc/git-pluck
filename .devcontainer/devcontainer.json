@@ -13,6 +13,7 @@
     "git-pluck-dev"
   ],
   "remoteUser": "ubuntu",
+  "postCreateCommand": "tools/container_post_create_setup.sh",
   // "onCreateCommand": [
   //   "chown",
   //   "-R",
